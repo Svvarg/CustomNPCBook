@@ -1,0 +1,15 @@
+[
+{
+  "modid": "CustomNPCBook",
+  "name": "CustomNPCBook",
+  "description": "Experimental Guide book via CustomNPC Dialogs",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Swarg"],
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
