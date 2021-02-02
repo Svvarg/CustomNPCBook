@@ -15,6 +15,7 @@ import net.minecraft.util.ChatComponentStyle;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.MathHelper;
 
 import noppes.npcs.Server;
 import noppes.npcs.NoppesUtilServer;
@@ -40,9 +41,9 @@ public class GuideKeeper {
     /*EntityId of CustomNPC GuideKeeper which will be opened through the 
       GuideBook. Keeper will be located in the persists chunks (Spawn)*/
     private Integer keeperId;
-    /*Entry dialog writen to nbt - firs page*/
-    private NBTTagCompound dialogNbt;
-    private Integer dialogId;//dialogNbt.getInteger("DialogId");
+    /*Entry dialog writen to nbt - firs page
+      meta of book corresponds to the dialog number of the npc*/
+    private NBTTagCompound[] aDialogNbt;// = new NBTTagCompound[ItemGuideBook.BOOKS.length];//max 11
 
 
     public static GuideKeeper instance() {
@@ -61,21 +62,23 @@ public class GuideKeeper {
      * @param player
      */
     public void openGuideDialog(ItemStack is, World world, EntityPlayer player) {
-        if (world != null && !world.isRemote && player != null) {
+        if (world != null && !world.isRemote && player != null && is != null) {
+            final int meta = MathHelper.clamp_int(is.getItemDamage(), 0, ItemGuideBook.BOOKS.length); //11-ItemGuideBook.BOOKS.length
 
             EntityNPCInterface keeper = checkOrFindGuideKeeper();//update keeperId on success
 
             if (isValidKeeperState(keeper)) {
 
-                if (this.dialogNbt == null || this.dialogId == null) {
+                if (isNoDialogs()) {
                     //init dialogNBT by search first dialog in GuideKeeper
                     setGuideDialog(keeper);
                 }
 
-                if (this.dialogNbt != null && this.dialogId != null && PlayerDataController.instance != null) {
+                if (hasDialog(this.aDialogNbt, meta) && PlayerDataController.instance != null) {
 
                     //OpenDialog in Player Client
-                    Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG, new Object[]{ keeperId, dialogNbt});
+                    //dialogId dialogNbt.getInteger("DialogId");
+                    Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG, new Object[]{ keeperId, aDialogNbt[meta]});
 
                     // without this package, the dialog options don't open for some reason
                     NoppesUtilServer.setEditingNpc(player, keeper);
@@ -86,6 +89,37 @@ public class GuideKeeper {
             }
         }
     }
+
+    private boolean hasDialog(Object[] a, int index) {
+        return  (a != null && index > -1 && index < a.length && a[index] != null);
+    }
+
+    /**
+     * Cleanup dialogs for ingame "reload" via GuideKeeperEntity
+     */
+    private void cleanDialogs() {
+        if (this.aDialogNbt != null) {
+            for (int i = 0; i < aDialogNbt.length; i++) {
+                this.aDialogNbt[i] = null;
+            }
+        } else {
+            //meta of book corresponds dialog number in npc
+            // for basic guidebook it index = 0
+            this.aDialogNbt = new NBTTagCompound[ItemGuideBook.BOOKS.length];//max 11;
+        }
+    }
+
+    private boolean isNoDialogs() {
+        if (this.aDialogNbt != null) {
+            for (int i = 0; i < aDialogNbt.length; i++) {
+                if ( aDialogNbt[i] != null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /*
         [Alternative] how work open dialog via console command:
         '/noppes dialog show player1 <dialogId> (EntityName)'
@@ -160,14 +194,12 @@ public class GuideKeeper {
         //reset GuideKeeper
         if (keeper == null || keeper.isDead) {
             this.keeperId  = null;//import for reset removed from world npc-entity
-            this.dialogNbt = null;
-            this.dialogId  = null;
+            cleanDialogs();//this.aDialogNbt = null; this.dialogId  = null;
             sendGlobalMessage("DEBUG", "Not Found Guide Keeper");//player.addChatMessage(new ChatComponentText("?"));
         }
         //reset DialogNbt-workpiece
         else if (keeper.dialogs == null || keeper.dialogs.size() == 0) {
-            this.dialogNbt = null;
-            this.dialogId = null;
+            cleanDialogs();//this.aDialogNbt = null; this.dialogId = null;
             sendGlobalMessage("DEBUG", "No Found Dialog in Guide Keeper");
         }
         //success
@@ -187,23 +219,26 @@ public class GuideKeeper {
      * @param keeper
      */
     private void setGuideDialog(EntityNPCInterface keeper) {
-        this.dialogNbt = null;
-        this.dialogId = null;
+        cleanDialogs();
+        
+        //this.dialogId = null;
+        // i - meta of book corresponde dialog index in npc
+        for (int i = 0; i < aDialogNbt.length; i++) {
+            final DialogOption option = keeper.dialogs.get(Integer.valueOf(i));
 
-        final DialogOption option = keeper.dialogs.get(Integer.valueOf(0));
-//        Iterator iter = keeper.dialogs.values().iterator();
-//        while (iter.hasNext()) {
-//            final DialogOption option = (DialogOption) iter.next();
             if (option != null && option.hasDialog()) {
                 final Dialog dialog = option.getDialog();
-                if (dialog != null) {
-                    this.dialogId  = dialog.id;//dialogNbt.getInteger("DialogId");
-                    this.dialogNbt = dialog.writeToNBT(new NBTTagCompound());
-                    ///*DEBUG*/sendGlobalMessage("DEBUG", "Found Dialog in Guide Keeper");
-                    return;
+                if (dialog != null) {                    
+                    /* write to NPC Once for send to Player Clients
+                       For reload dialog rename GuideKeeper and use GuideBook it
+                       cleanup installed dialogs then, after editing the dialogs,
+                       return the name to the guidekeeper npc.*/
+                    this.aDialogNbt[i] = dialog.writeToNBT(new NBTTagCompound());
+                    //this.dialogId  = dialog.id;//dialogNbt.getInteger("DialogId");
+                    ///*DEBUG*/sendGlobalMessage("DEBUG", "Found Dialog in Guide Keeper" + i);
                 }
             }
-//        }
+        }
     }
 
     

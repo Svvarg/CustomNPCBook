@@ -30,7 +30,12 @@ public class CustomNPCBook {
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        ItemGuideBook.guideBook = new ItemGuideBook().setUnlocalizedName(MODID+".guideBook").setTextureName(MODID+":"+"guideBook").setMaxStackSize(4).setCreativeTab(CreativeTabs.tabMisc);
+        ItemGuideBook.guideBook = new ItemGuideBook()
+                .setHasSubtypes(true)
+                .setUnlocalizedName(MODID+".guideBook")
+                //.setTextureName(MODID+":"+"guideBook")
+                .setMaxStackSize(4)
+                .setCreativeTab(CreativeTabs.tabMisc);
         GameRegistry.registerItem(ItemGuideBook.guideBook, "GuideBook");
     }
 
