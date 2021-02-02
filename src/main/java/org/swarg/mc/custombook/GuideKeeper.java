@@ -7,13 +7,14 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.World;
-import net.minecraft.item.ItemStack;
 import net.minecraft.server.management.ServerConfigurationManager;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentStyle;
+import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.EnumChatFormatting;
 
 import noppes.npcs.Server;
 import noppes.npcs.NoppesUtilServer;
@@ -182,7 +183,7 @@ public class GuideKeeper {
                 if (dialog != null) {
                     this.dialogId  = dialog.id;//dialogNbt.getInteger("DialogId");
                     this.dialogNbt = dialog.writeToNBT(new NBTTagCompound());
-                    /*DEBUG*/sendGlobalMessage("DEBUG", "Found Dialog in Guide Keeper");
+                    ///*DEBUG*/sendGlobalMessage("DEBUG", "Found Dialog in Guide Keeper");
                     return;
                 }
             }
@@ -197,8 +198,28 @@ public class GuideKeeper {
      */
     public static void sendGlobalMessage(String name, String message) {
         ServerConfigurationManager csm = MinecraftServer.getServer().getConfigurationManager();
-        if (csm != null) {
-            ChatComponentStyle msg = new ChatComponentTranslation(message); //new ChatComponentText(line);
+        if (csm != null && message != null) {
+            ChatComponentStyle msg;
+            if (name == null || name.isEmpty()) {
+                try {
+                    msg = new ChatComponentTranslation(message);
+                }
+                catch (Exception e) {
+                    msg = new ChatComponentText(message);
+                }
+            } 
+            // <name> message
+            else {
+                StringBuilder sb = new StringBuilder();
+                sb.append(EnumChatFormatting.WHITE)
+                  .append('<')
+                  .append(EnumChatFormatting.GREEN).append(name)
+                  .append(EnumChatFormatting.WHITE)
+                  .append('>').append(' ')
+                  .append(EnumChatFormatting.GOLD)
+                  .append(message);
+                msg = new ChatComponentText(sb.toString());
+            }
             csm.sendChatMsg(msg);
         }
     }
