@@ -13,11 +13,8 @@ import org.swarg.mc.custombook.GuideKeeper;
  * @author Swarg
  */
 public class CommandNamedBroadcast extends CommandBase {
-    //private final List<String> aliases;
 
     public CommandNamedBroadcast() {
-        //this.aliases = new ArrayList<String>();
-        //this.aliases.add("nbc");
     }
 
     @Override
@@ -59,11 +56,5 @@ public class CommandNamedBroadcast extends CommandBase {
             }
         }
     }
-
-
-//    @Override
-//    public List<String> getCommandAliases() {
-//        return this.aliases;
-//    }
 
 }

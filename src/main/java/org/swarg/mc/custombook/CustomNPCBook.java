@@ -8,6 +8,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraftforge.common.MinecraftForge;
+import org.swarg.mc.custombook.handlers.CommandGuideBook;
 import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 
 /**
@@ -23,6 +24,7 @@ public class CustomNPCBook {
     @EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandNamedBroadcast());
+        event.registerServerCommand(new CommandGuideBook());
     }
 
 

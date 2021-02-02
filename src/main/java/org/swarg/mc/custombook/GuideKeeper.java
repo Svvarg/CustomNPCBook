@@ -86,7 +86,22 @@ public class GuideKeeper {
             }
         }
     }
+    /*
+        [Alternative] how work open dialog via console command:
+        '/noppes dialog show player1 <dialogId> (EntityName)'
 
+            int diagid = Integer.parseInt(args[1]);
+            Dialog dialog = (Dialog)DialogController.instance.dialogs.get(Integer.valueOf(diagid));
+    
+            noppes.npcs.entity.EntityDialogNpc npc = new EntityDialogNpc( playerworld );
+            npc.display.name = args[2];
+            EntityUtil.Copy(player, npc);
+            DialogOption option = new DialogOption();
+            option.dialogId = diagid;
+            option.title = dialog.title;
+            npc.dialogs.put(Integer.valueOf(0), option);
+            NoppesUtilServer.openDialog(player, npc, dialog);
+    */
 
 
     /**
@@ -175,9 +190,10 @@ public class GuideKeeper {
         this.dialogNbt = null;
         this.dialogId = null;
 
-        Iterator iter = keeper.dialogs.values().iterator();
-        while (iter.hasNext()) {
-            final DialogOption option = (DialogOption) iter.next();
+        final DialogOption option = keeper.dialogs.get(Integer.valueOf(0));
+//        Iterator iter = keeper.dialogs.values().iterator();
+//        while (iter.hasNext()) {
+//            final DialogOption option = (DialogOption) iter.next();
             if (option != null && option.hasDialog()) {
                 final Dialog dialog = option.getDialog();
                 if (dialog != null) {
@@ -187,7 +203,7 @@ public class GuideKeeper {
                     return;
                 }
             }
-        }
+//        }
     }
 
     
