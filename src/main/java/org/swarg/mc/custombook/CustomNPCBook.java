@@ -4,8 +4,11 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraftforge.common.MinecraftForge;
+import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 
 /**
  * 01-02-21
@@ -16,6 +19,11 @@ public class CustomNPCBook {
     public static final String MODID = "CustomNPCBook";
     public static final String VERSION = "0.1";
 
+    
+    @EventHandler
+    public void serverLoad(FMLServerStartingEvent event) {
+        event.registerServerCommand(new CommandNamedBroadcast());
+    }
 
 
     @EventHandler
