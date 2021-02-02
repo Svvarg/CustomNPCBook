@@ -18,7 +18,7 @@ import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 @Mod(modid = CustomNPCBook.MODID, version = CustomNPCBook.VERSION)
 public class CustomNPCBook {
     public static final String MODID = "CustomNPCBook";
-    public static final String VERSION = "0.1";
+    public static final String VERSION = "0.2";
 
     
     @EventHandler
