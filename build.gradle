@@ -12,6 +12,7 @@ buildscript {
             name = "sonatype"
             url = "https://oss.sonatype.org/content/repositories/snapshots/"
         }
+        mavenLocal()
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:1.2-SNAPSHOT'
@@ -26,8 +27,8 @@ targetCompatibility = 1.8
 apply plugin: 'forge'
 
 
-version = "0.2"
-group= "org.swarg.mc.custombook" 
+version = "0.3"
+group = "org.swarg.mc.custombook" 
 archivesBaseName = "CustomNPCBook"
 
 minecraft {
@@ -35,8 +36,15 @@ minecraft {
     runDir = "run"
 }
 
+repositories {    
+    mavenLocal() //def localMavenRepo = 'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath
+}
+
 dependencies {
-    compile files('../libs/CustomNPCs_1.7.10d(19jun17).jar')
+    compile 'org.swarg.cmds:cmds4j:0.1'
+    //~/.m2/repository/noppes/npcs/custom-npcs/1.7.10d/custom-npcs-1.7.10d.jar
+    compile 'noppes.npcs:custom-npcs:1.7.10d'
+    //compile files('../libs/CustomNPCs_1.7.10d(19jun17).jar')
 }
 
 processResources

@@ -7,8 +7,7 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraftforge.common.MinecraftForge;
-import org.swarg.mc.custombook.handlers.CommandGuideBook;
+import org.swarg.mc.custombook.handlers.CommandCustomBook;
 import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 
 /**
@@ -18,25 +17,24 @@ import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 @Mod(modid = CustomNPCBook.MODID, version = CustomNPCBook.VERSION)
 public class CustomNPCBook {
     public static final String MODID = "CustomNPCBook";
-    public static final String VERSION = "0.2";
+    public static final String VERSION = "0.3";
 
     
     @EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandNamedBroadcast());
-        event.registerServerCommand(new CommandGuideBook());
+        event.registerServerCommand(new CommandCustomBook());
     }
 
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        ItemGuideBook.guideBook = new ItemGuideBook()
+        ItemCustomBook.customBook = new ItemCustomBook()
                 .setHasSubtypes(true)
-                .setUnlocalizedName(MODID+".guideBook")
-                //.setTextureName(MODID+":"+"guideBook")
+                .setUnlocalizedName(MODID+".book")
                 .setMaxStackSize(4)
                 .setCreativeTab(CreativeTabs.tabMisc);
-        GameRegistry.registerItem(ItemGuideBook.guideBook, "GuideBook");
+        GameRegistry.registerItem(ItemCustomBook.customBook, "CustomBook");
     }
 
     @EventHandler

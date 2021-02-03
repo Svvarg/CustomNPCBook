@@ -1,4 +1,4 @@
-package org.swarg.mc.custombook;
+package org.swarg.mc.custombook.util;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;

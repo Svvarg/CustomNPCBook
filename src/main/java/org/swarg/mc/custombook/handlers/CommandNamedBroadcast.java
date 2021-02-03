@@ -1,12 +1,10 @@
 package org.swarg.mc.custombook.handlers;
 
-import java.util.List;
-import java.util.ArrayList;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentText;
 
-import org.swarg.mc.custombook.GuideKeeper;
+import org.swarg.mc.custombook.BooksKeeper;
 
 /**
  * 02-02-21
@@ -52,7 +50,7 @@ public class CommandNamedBroadcast extends CommandBase {
                     String arg = args[i];
                     sb.append(arg).append(' ');
                 }
-                GuideKeeper.sendGlobalMessage(name, sb.toString());
+                BooksKeeper.sendGlobalMessage(name, sb.toString());
             }
         }
     }

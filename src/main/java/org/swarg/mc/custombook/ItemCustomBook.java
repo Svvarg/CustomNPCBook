@@ -19,18 +19,18 @@ import net.minecraft.util.IIcon;
  *
  * @author Swarg
  */
-public class ItemGuideBook extends Item {
-    public static final String[] BOOKS = new String[]{"base", "rare" /*reserve*/}; //max size 15
+public class ItemCustomBook extends Item {
+    public static final String[] BOOKS = new String[] {"guide", "rare" /*reserve*/}; //max size 15
     @SideOnly(Side.CLIENT)
     private IIcon[] icons;
 
-    public static Item guideBook;
+    public static Item customBook;
     /**
      *  Item used on block
      */
     @Override
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int i7, float f8, float f9, float f10) {
-        GuideKeeper.instance().openGuideDialog(stack, world, player);
+        BooksKeeper.instance().openBookDialog(player, stack);
         return true;
     }
 
@@ -40,15 +40,28 @@ public class ItemGuideBook extends Item {
      */
     @Override
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-        GuideKeeper.instance().openGuideDialog(stack, world, player);
+        BooksKeeper.instance().openBookDialog(player, stack);
         return stack;
     }
 
 
+    private int clampMeta(Object[] a, int meta) {
+        if (a != null) {
+            if (meta >= a.length) {
+                meta = a.length-1;
+            }
+            else if (meta < 0) {
+                meta = 0;
+            }
+            return meta;
+        }
+        return 0;
+    }
 
     @Override
     public String getUnlocalizedName(ItemStack is) {
-        final int meta = MathHelper.clamp_int(is.getItemDamage(), 0, /*15*/BOOKS.length);
+        //MathHelper.clamp_int(m,0,15);
+        final int meta = clampMeta(BOOKS, is.getItemDamage());
 
         return super.getUnlocalizedName() + "."+ BOOKS[meta];
     }
@@ -58,18 +71,14 @@ public class ItemGuideBook extends Item {
     public void registerIcons(IIconRegister reg) {
         icons = new IIcon[BOOKS.length];
         for (int i = 0; i < icons.length; i++) {
-            icons[i] = reg.registerIcon(CustomNPCBook.MODID + ":" + "guideBook_" + BOOKS[i]);
-
+            icons[i] = reg.registerIcon(CustomNPCBook.MODID + ":" + "book_" + BOOKS[i]);
         }
     }
 
     @SideOnly(Side.CLIENT)
     @Override
     public IIcon getIconFromDamage(int meta) {
-        if (meta > this.icons.length) {
-            meta = 0;
-        }
-        return this.icons[meta];
+        return this.icons[clampMeta(icons, meta)];
     }
 
     @SideOnly(Side.CLIENT)
