@@ -3,19 +3,15 @@ package org.swarg.mc.custombook;
 import java.util.Map;
 import java.util.HashMap;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.management.ServerConfigurationManager;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentStyle;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.nbt.NBTTagCompound;
+import noppes.npcs.NoppesUtilServer;
 
 import noppes.npcs.Server;
-import noppes.npcs.NoppesUtilServer;
 import noppes.npcs.entity.EntityDialogNpc;
 import noppes.npcs.constants.EnumPacketClient;
 import noppes.npcs.controllers.PlayerDataController;
@@ -24,6 +20,8 @@ import noppes.npcs.controllers.DialogController;
 import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.DialogOption;
 import noppes.npcs.controllers.Dialog;
+
+import org.swarg.mc.custombook.util.NpcUtil;
 
 
 /**
@@ -42,7 +40,11 @@ public class BooksKeeper {
     private final EntityDialogNpc bookKeeper;
     /*StartMain Pages of Books - Dialogs(FirstPage in book) associated with
       book metadata( itemDamage ) */
-    private final Map<Integer, Dialog> metaToDialog = new HashMap<Integer, Dialog>();
+    //private final Map<Integer, Dialog> metaToDialog = new HashMap<Integer, Dialog>();
+                    // meta    dialogId
+    private final Map<Integer, Integer> metaToDialogId = new HashMap<Integer, Integer>();
+    private String backTitle = "Back"; //for autogenerate for command custombook dialog #id option add-new option name one \ option two \ the best option
+    private boolean debug = true;
 
 
     public static BooksKeeper instance() {
@@ -72,42 +74,52 @@ public class BooksKeeper {
             Dialog dialog = getStartDialogForBook(meta);
             //OpenDialog in Player Client
             if (dialog != null && PlayerDataController.instance != null && DialogController.instance != null) {
-                //Dialog dialog = (Dialog) DialogController.instance.dialogs.get( this.dialogIds[meta] );
+                dialog.hideNPC = true;
                 
-                debugOpMsg(player, "SendData Meta: %s DIALOG Title: '%s' id: %s ", meta, dialog.title, dialog.id);
+                debugOpMsg(player, "SendData Meta: %s DIALOG id: %s Title: '%s'", meta, dialog.id, dialog.title);
 
                 ///*Full:*/ NoppesUtilServer.openDialog(player, keeper, dialog);
 
                 //Eco:
                 Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG_DUMMY, new Object[]{ bookKeeper.getCommandSenderName(), dialog.writeToNBT(new NBTTagCompound())});
                 //Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG, new Object[]{ Integer.valueOf(keeper.getEntityId()), dialog.writeToNBT(new NBTTagCompound()) });
-                // without this package, the dialog options don't open for some reason
-                //NoppesUtilServer.setEditingNpc(player, bookKeeper);
+                //without this, will not be able to activate the child dialog-options
+                NoppesUtilServer.setEditingNpc(player, bookKeeper);
             }
             else {
                 //itembook meta corresponds DialogCategoryIndex in exists dialogs BOOK_<Slot>
                 player.addChatMessage(new ChatComponentText("Locked"));
                 debugOpMsg(player, "No DialogId for meta: " + meta);
-            }            
+            }
         }
+    }
+
+    public Dialog getDialogForMeta(Integer meta) {
+        //Integer key = Integer.valueOf(meta);
+        Integer dialogId = metaToDialogId.get(meta);
+        return (dialogId != null ) ? getDialog(dialogId) : null;
+    }
+
+    public static Dialog getDialog(Integer dialogId) {
+        return DialogController.instance != null && DialogController.instance.dialogs != null
+                ? DialogController.instance.dialogs.get(dialogId)
+                : null;
     }
 
     /**
      * Search start-main-page-dialog for book by item:meta(Damage)
-     * @param meta
+     * @param bookMeta
      * @return
      */
-    public Dialog getStartDialogForBook(int meta) {
-        boolean DEBUG = 0==0;
-        Integer key = Integer.valueOf(meta);
-        Dialog dialog = metaToDialog.get(key);
+    public Dialog getStartDialogForBook(int bookMeta) {
+        final Integer meta = Integer.valueOf(bookMeta);
+        Dialog dialog = getDialogForMeta(meta);//metaToDialog.get(key);
 
         /*if the dialog was already searched for, it was not found - the
           value will be null. In this case, do not search again */
-        if (dialog == null && !metaToDialog.containsKey(key) &&
+        if (dialog == null && !metaToDialogId.containsKey(meta) &&
             DialogController.instance != null && !DialogController.instance.categories.isEmpty())
         {
-
             HashMap<Integer, DialogCategory> dca = DialogController.instance.categories;
 
             for (DialogCategory dc : dca.values()) {
@@ -121,19 +133,21 @@ public class BooksKeeper {
                             Integer dId = getLowestDialogId(dc.dialogs);
                             if (dId != null ) {
                                 dialog = dc.dialogs.get(dId);
-                                this.metaToDialog.put(meta, dialog);
 
                                 if (dialog != null) {
-                                    /*DEBUG*/if (DEBUG) { System.out.println("Found Dialog for meta: " + meta + " dialogId:" + dialog.id);}
+                                    /*DEBUG*/if (debug) { System.out.println("Found Dialog for meta: " + meta + " dialogId:" + dialog.id);}
                                     //DialogOption dOption = new DialogOption();dOption.dialogId = dialog.id;dOption.title = dialog.title;bookKeeper.dialogs.put( mi, dOption);
+                                    this.metaToDialogId.put(meta, dialog.id);
                                 } else {
-                                    /*DEBUG*/if (DEBUG) {System.out.println("Dialog for meta "+meta+" is null!");}
+                                    /*DEBUG*/if (debug) {System.out.println("Dialog for meta "+meta+" is null!");}
+                                    this.metaToDialogId.put(meta, null);
                                 }
+
                                 return dialog;
                             }
                             else {
                                 final int sz = dc.dialogs == null ? 0 : dc.dialogs.size();
-                                /*DEBUG*/if (DEBUG) {System.out.println("Not found lowestDialogId in variants counts: " + sz + " for meta: "+meta);}
+                                /*DEBUG*/if (debug) {System.out.println("Not found lowestDialogId in variants counts: " + sz + " for meta: "+meta);}
                             }
 
                         }
@@ -141,9 +155,9 @@ public class BooksKeeper {
                 }
             }
 
-            //mark as not exist. 'use command custombook reload' if added new dialogs and categories
+            //mark alredy searched but not exist. Use command 'custombook reload' if added new dialogs and categories
             //for search only once
-            this.metaToDialog.put(meta, null);
+            this.metaToDialogId.put(meta, null);
         }
 
         return dialog;
@@ -197,34 +211,37 @@ public class BooksKeeper {
     }
 
     public void reload () {
-        this.metaToDialog.clear();//todo
+        this.metaToDialogId.clear();//todo
     }
 
 
     public String status() {
         StringBuilder sb = new StringBuilder();
         sb.append("BookKeeperDummyNPC:").append( this.bookKeeper == null ? '-' : '+').append(' ');
-        int kbsz = this.bookKeeper.dialogs==null ? 0 : this.bookKeeper.dialogs.size();
+        int kbsz = this.bookKeeper.dialogs == null ? 0 : this.bookKeeper.dialogs.size();
         sb.append("DialogsInKeeper: ").append( kbsz );
 
         //final int sz = this.dialogIds.length;
-        final int sz = this.metaToDialog.size();
+        final int sz = this.metaToDialogId.size();
         if (sz > 0) {
             sb.append('\n');
-            //m - book meta in BookKeeper is DialogSlot
-            for (Map.Entry<Integer, Dialog> entry : metaToDialog.entrySet()) {
-                Integer meta = entry.getKey();
-                Dialog dialog = entry.getValue();
+            for (Map.Entry<Integer, Integer> entry : metaToDialogId.entrySet()) {
+                Integer meta = entry.getKey();                
+                Integer dialogId = entry.getValue();//Dialog dialog = entry.getValue();
 
                 sb.append("Meta:").append(meta);//corresponds bookitem meta and DialogCategory Name "BOOK_0"
 
-                if (dialog != null) {
-                    sb.append(" DialogId:").append(dialog.id).append(' ');
+                if (dialogId != null) {
+                    sb.append(" DialogId:").append(dialogId).append(' ');
+                    Dialog dialog = getDialog(dialogId);
                     if (dialog != null) {
                         if (dialog.category != null) {
                             sb.append(dialog.category.title);
                         }
                         sb.append('.').append(dialog.title);
+                        if (dialogId != dialog.id) {
+                            sb.append("[DeSync! Dialog.Id:").append(dialog.id).append(']');//check
+                        }
                     } else {
                         sb.append("[NOT_FOUND]");
                     }
@@ -242,48 +259,21 @@ public class BooksKeeper {
         return sb.toString();
     }
 
+    public String getBackTitle() {
+        return backTitle;
+    }
+
+    public void setBackTitle(String backTitle) {
+        this.backTitle = backTitle;
+    }
+
+
 
     //                          --- UTILS ---
     
-    /**
-     * Message to all players
-     * @param name
-     * @param message
-     */
-    public static void sendGlobalMessage(String name, String message) {
-        ServerConfigurationManager csm = MinecraftServer.getServer().getConfigurationManager();
-        if (csm != null && message != null) {
-            ChatComponentStyle msg;
-            if (name == null || name.isEmpty()) {
-                try {
-                    msg = new ChatComponentTranslation(message);
-                }
-                catch (Exception e) {
-                    msg = new ChatComponentText(message);
-                }
-            } 
-            // <name> message
-            else {
-                StringBuilder sb = new StringBuilder();
-                sb.append(EnumChatFormatting.WHITE)
-                  .append('<')
-                  .append(EnumChatFormatting.GREEN).append(name)
-                  .append(EnumChatFormatting.WHITE)
-                  .append('>').append(' ')
-                  .append(EnumChatFormatting.GOLD)
-                  .append(message);
-                msg = new ChatComponentText(sb.toString());
-            }
-            csm.sendChatMsg(msg);
-        }
-    }
-    
-    public static boolean isOp (EntityPlayer p) {
-        return p != null && MinecraftServer.getServer().getConfigurationManager().func_152596_g( p.getGameProfile());
-    }
     
     public static void debugOpMsg(EntityPlayer p, String msg, Object...args) {
-        if (isOp(p) && msg != null) {
+        if (NpcUtil.isOp(p) && msg != null) {
             try {
                 final String line = args == null || args.length == 0 ? msg : String.format(msg, args);
                 p.addChatMessage(new ChatComponentText( EnumChatFormatting.GOLD + "[DEBUG] "+ line));

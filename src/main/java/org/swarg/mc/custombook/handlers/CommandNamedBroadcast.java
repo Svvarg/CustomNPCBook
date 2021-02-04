@@ -4,7 +4,7 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentText;
 
-import org.swarg.mc.custombook.BooksKeeper;
+import org.swarg.mc.custombook.util.NpcUtil;
 
 /**
  * 02-02-21
@@ -50,7 +50,7 @@ public class CommandNamedBroadcast extends CommandBase {
                     String arg = args[i];
                     sb.append(arg).append(' ');
                 }
-                BooksKeeper.sendGlobalMessage(name, sb.toString());
+                NpcUtil.sendGlobalMessage(name, sb.toString());
             }
         }
     }
