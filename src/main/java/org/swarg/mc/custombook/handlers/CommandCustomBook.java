@@ -323,7 +323,7 @@ public class CommandCustomBook extends CommandBase {
     private String cmdDialog(ArgsWrapper w, ICommandSender sender) {
         String response = "?";
         if (w.isHelpCmdOrNoArgs()) {
-            return "dialog (id) <status/text/gui/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
+            return "dialog (id) <status/edit/text/gui/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
         }
 
         if (w.isCmd("last-dialog-id", "ldi")) {
@@ -352,6 +352,10 @@ public class CommandCustomBook extends CommandBase {
         //cb dialog new-options op0 op2 op3 .. op5
         if (w.noArgs() || w.isCmd("status", "st")) {
             response = cmdDialogStatus(dialog, w);
+        }
+        //cb dialog #id edit
+        if (w.noArgs() || w.isCmd("edit", "e")) {
+            response = cmdDialogEdit(dialog, w);
         }
 
         else if (w.isCmd("text")) {
@@ -383,7 +387,7 @@ public class CommandCustomBook extends CommandBase {
         // cb dialog #id options new option0-title o1-title o2-title... n
         else if (w.isCmd("options", "o")) {
             if (w.isHelpCmdOrNoArgs()) {
-                return "<add-new/remove/clean/edit/move>";
+                return "<add-new/add-back/add-quit/remove/clean/edit/move>";
             }
             if (dialog.options == null) {
                 dialog.options = new HashMap();
@@ -395,13 +399,28 @@ public class CommandCustomBook extends CommandBase {
             }
             // cb d #id add-back #toDialogId
             else if (w.isCmd("add-back", "ab")) {
-                int toDialogId = w.argI(w.ai++, -1);
-                boolean flag = addBackDialogOptionTo(dialog, toDialogId);
-                response = "Back Added:" + flag + " to DialogId:" + toDialogId;
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = "(#slot) [BackTitle]";
+                } else {
+                    int toDialogId = w.argI(w.ai++, -1);
+                    String backTitle = w.hasArg() ? w.join(w.ai) : BooksKeeper.instance().getBackTitle();
+                    boolean flag = addBackDialogOptionTo(dialog, toDialogId, backTitle);
+                    response = "Back Added: " + flag + " to DialogId:" + toDialogId +" from DialogId: " + dialog.id;
+                }
+            }
+            else if (w.isCmd("add-quit", "aq")) {
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = "(#slot) [QuitTitle]";
+                } else {
+                    int slot = w.argI(w.ai++, -1);
+                    String quitTitle = w.hasArg() ? w.join(w.ai) : "Quit";
+                    boolean flag = addQuitDialogOption(dialog, slot, quitTitle);
+                    response = "Quit Added: " + flag + " to DialogId: " + dialog.id + " to DialogOptionSlot: " + slot;
+                }
             }
 
             //remove dialog option from current dialog.options and delete the dialog-option from disk
-            else if (w.isCmd("remove", "r")) {
+            else if (w.isCmd("remove", "rm")) {
                 //remove one specific dialog-option from dialog.options by his slotIndex
                 Integer slot = w.argI(w.ai++, -1);
                 DialogOption roDialog = dialog.options.get(slot);
@@ -415,9 +434,7 @@ public class CommandCustomBook extends CommandBase {
                     Object removed = dialog.options.remove(slot);
                     response = "Slot - Cleaned.  Dialog: " + removed == null ? "The slot was Empty" : "Removed";
                     //save changes
-                    if (dialog.category != null) {
-                        DialogController.instance.saveDialog(dialog.category.id, dialog);
-                    }
+                    NpcUtil.saveDialog(dialog);
                 }
                 else {
                     response = "Not Found dialog-option for slot:" + w.arg(w.ai - 1);
@@ -446,9 +463,7 @@ public class CommandCustomBook extends CommandBase {
                         }
                     }
                     //save changes
-                    if (dialog.category != null) {
-                        DialogController.instance.saveDialog(dialog.category.id, dialog);
-                    }
+                    NpcUtil.saveDialog(dialog);
                                                          // slots    actual removed dialogs
                     response = "Cleaned all dialog options["+dosz+"]: " + counter + " in DialogId:" + dialog.id;
 
@@ -499,7 +514,7 @@ public class CommandCustomBook extends CommandBase {
         sb.append("DialogId: ").append(dialog.id).append(' ').append(dialog.title).append('\n');
         sb.append("Options: ");
         if (dialog.options != null && !dialog.options.isEmpty()) {
-            sb.append("\nSlot #DlgId #QId :OptType :Title\n");
+            sb.append("\nSlot #DId  #Q :SlotOptionType :SlotTitle\n");
             for (Map.Entry<Integer, DialogOption> entry : dialog.options.entrySet()) {
                 Integer slot = entry.getKey();
                 DialogOption dop = entry.getValue();
@@ -519,6 +534,43 @@ public class CommandCustomBook extends CommandBase {
             sb.append("Empty");
         }
         return sb.toString();
+    }
+
+    public String cmdDialogEdit(Dialog dialog, ArgsWrapper w) {
+        String response = "?";
+        if (w == null || w.isHelpCmdOrNoArgs()) {
+            return "<quest/show-wheel/command>";
+        }
+
+        boolean mod = false;
+        if (w.isCmd("quest", "q")) {
+            int l = dialog.quest;
+            dialog.quest = w.argI(w.ai++, -1);
+            mod = mod || l != dialog.quest;
+        }
+        if (w.isCmd("show-wheel","sw")) {
+            boolean l = dialog.showWheel;
+            dialog.showWheel = w.argB(w.ai++);
+            mod = mod || l != dialog.showWheel;
+        }
+
+        if (w.isCmd("sound", "s")) {
+            String l = dialog.sound;
+            dialog.sound = w.arg(w.ai++);
+            mod = mod || !dialog.sound.equals(l);
+        }
+
+        if (w.isCmd("command","c")) {
+            String l = dialog.command;
+            dialog.command = w.join(w.ai);
+            mod = mod || !dialog.command.equals(l);
+        }
+
+        if (mod) {
+            NpcUtil.saveDialog(dialog);
+        }
+        response = "#" + dialog.id + " " + dialog.title + " Q:" + dialog.quest+" Options: " + dialog.options.size() + "ShowWheel:"+dialog.showWheel+" Sound:"+dialog.sound;
+        return response;
     }
 
 
@@ -577,9 +629,7 @@ public class CommandCustomBook extends CommandBase {
                     /*DIALOG*/System.out.println(file);
                     if (file.exists()) {
                         dialog.text = org.apache.commons.io.FileUtils.readFileToString(file, org.apache.commons.io.Charsets.UTF_8);
-                        if (dialog.category != null) {
-                            DialogController.instance.saveDialog(dialog.category.id, dialog);
-                        }
+                        NpcUtil.saveDialog(dialog);
                         response = "Loaded to DialogId:" + dialog.id + " length: "+ (dialog.text==null ? -1 : dialog.text.length());
                     } else {
                         response = "Not Found: "+ lang + "/" + filename;
@@ -670,9 +720,7 @@ public class CommandCustomBook extends CommandBase {
             response = sb.toString();
 
             //save changes
-            if (dialog.category != null && mod) {
-                DialogController.instance.saveDialog(dialog.category.id, dialog);
-            }
+            NpcUtil.saveDialog(dialog);
         }
         return response;
     }
@@ -746,9 +794,7 @@ public class CommandCustomBook extends CommandBase {
                             }
                         }
                     }
-                    if (dialog.category != null && mod) {
-                        DialogController.instance.saveDialog(dialog.category.id, dialog);
-                    }
+                    NpcUtil.saveDialog(dialog);
                 }
 
                 response = "Done; sz:" + sz + " i: "+slot +" Added new options:"+ (slot-sz);
@@ -765,24 +811,39 @@ public class CommandCustomBook extends CommandBase {
     }
 
 
-    public boolean addBackDialogOptionTo(Dialog dialog, int toDialogId) {
+    public boolean addBackDialogOptionTo(Dialog dialog, int toDialogId, String backTitle) {
         if (dialog != null && toDialogId > -1) {
             //add only on exists dialogs Id
             if (DialogController.instance.dialogs != null && DialogController.instance.dialogs.containsKey(toDialogId)) {
-                String backOptionTitle = BooksKeeper.instance().getBackTitle();
-                if (backOptionTitle != null && !backOptionTitle.isEmpty()) {
+                //String backTitle = BooksKeeper.instance().getBackTitle();
+                if (backTitle != null && !backTitle.isEmpty() && BooksKeeper.getDialog(toDialogId) != null && toDialogId != dialog.id) {
                     DialogOption backOption = new DialogOption();
                     backOption.optionType = EnumOptionType.DialogOption;
                     backOption.dialogId = toDialogId;
-                    backOption.title = backOptionTitle;//"Back"
+                    backOption.title = backTitle;//"Back"
                     dialog.options.put(99, backOption);
-                    //save
-                    if (dialog.category != null) {
-                        DialogController.instance.saveDialog(dialog.category.id, dialog);
-                    }
+                    NpcUtil.saveDialog(dialog);
+                    return true;
                 }
             }
-            return true;
+        }
+        return false;
+    }
+
+    public boolean addQuitDialogOption(Dialog dialog, int slot, String quitTitle) {
+        if (dialog != null) {
+            //add only on exists dialogs Id
+            if (DialogController.instance.dialogs != null &&
+                quitTitle != null && !quitTitle.isEmpty() && slot >-1 && !dialog.options.containsKey(slot)) {
+                DialogOption backOption = new DialogOption();
+                backOption.optionType = EnumOptionType.QuitOption;
+                backOption.dialogId = -1;
+                backOption.title = quitTitle; //"Quit"
+                dialog.options.put(slot, backOption);
+                //save
+                NpcUtil.saveDialog(dialog);
+                return true;
+            }            
         }
         return false;
     }
@@ -808,9 +869,7 @@ public class CommandCustomBook extends CommandBase {
             } else {
                 dialog.options.remove(fromSlot);
             }
-            if (dialog.category != null) {
-                DialogController.instance.saveDialog(dialog.category.id, dialog);
-            }
+            NpcUtil.saveDialog(dialog);
             return "Moved option from: " + fromSlot + " to: " + toSlot;
         }
     }

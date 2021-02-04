@@ -84,6 +84,14 @@ public class NpcUtil {
         return null;
     }
 
+    public static boolean saveDialog(Dialog dialog) {
+        if (dialog != null && dialog.category != null) {
+            DialogController.instance.saveDialog(dialog.category.id, dialog);
+            return true;
+        }
+        return false;
+    }
+
 
     public static int getLastDialogID(Boolean trim) {
         if (DialogController.instance != null) {
