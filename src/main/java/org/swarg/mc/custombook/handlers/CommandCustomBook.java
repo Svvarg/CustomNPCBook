@@ -188,14 +188,10 @@ public class CommandCustomBook extends CommandBase {
             else {
                 //cb display set-name (nameWord1) (nameWord2) (nameWordN)
                 if (w.isCmd("set-name", "sn")) {
-                    String name = w.arg(w.ai++);
+                    String name = w.join(w.ai);
                     if (name != null && !name.isEmpty()) {
-                        StringBuilder sb = new StringBuilder(name);
-                        while (w.argsRemain() > 0) {
-                            sb.append(' ').append(w.arg(w.ai++));
-                        }
-                        response = sb.toString();
-                        is.setStackDisplayName( response );
+                        is.setStackDisplayName( name );
+                        response = "Changed";
                     }
                     else {
                         response = "illegal empty name";
