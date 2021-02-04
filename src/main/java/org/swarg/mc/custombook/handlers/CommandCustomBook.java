@@ -323,7 +323,7 @@ public class CommandCustomBook extends CommandBase {
     private String cmdDialog(ArgsWrapper w, ICommandSender sender) {
         String response = "?";
         if (w.isHelpCmdOrNoArgs()) {
-            return "dialog (id) <status/edit/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
+            return "dialog (id) <status/text/gui/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
         }
 
         if (w.isCmd("last-dialog-id", "ldi")) {
