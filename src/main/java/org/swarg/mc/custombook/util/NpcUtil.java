@@ -1,38 +1,36 @@
 package org.swarg.mc.custombook.util;
 
 import java.util.Map;
+import java.util.List;
 import java.util.Collections;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import net.minecraft.command.ICommandSender;
-import net.minecraft.command.PlayerSelector;
-import net.minecraft.entity.Entity;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.Item;
 import net.minecraft.server.management.ServerConfigurationManager;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentStyle;
 import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.world.ChunkCoordIntPair;
+import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.gen.ChunkProviderServer;
+
 import noppes.npcs.CustomItems;
 import noppes.npcs.CustomNpcsPermissions;
-
-import noppes.npcs.controllers.Dialog;
+import noppes.npcs.constants.EnumOptionType;
 import noppes.npcs.controllers.DialogController;
-import noppes.npcs.controllers.PlayerData;
-import noppes.npcs.controllers.PlayerDataController;
-import noppes.npcs.entity.EntityNPCInterface;
+import noppes.npcs.controllers.DialogOption;
+import noppes.npcs.controllers.Dialog;
+
+import org.swarg.mc.custombook.BooksKeeper;
 
 /**
  * 04-02-21
@@ -76,6 +74,10 @@ public class NpcUtil {
         return p != null && MinecraftServer.getServer().getConfigurationManager().func_152596_g( p.getGameProfile());
     }
 
+
+    //------------------------------------------------------------------------\\
+    //                      Custom NPC tools
+    //------------------------------------------------------------------------\\
 
     public static Dialog newDialog(int categoryId, String title, String text) {
         if (DialogController.instance != null) {
@@ -129,41 +131,6 @@ public class NpcUtil {
         return -1;//error
     }
 
-
-    /**
-     * Temporary waitfor mcCoreLib dependency
-     * Look up entity only in same chunk! 
-     * @param player
-     * @param clazz
-     * @return
-     */
-    public static Entity getFirsNearestEntity(EntityPlayerMP player, Class clazz) {
-        if (player != null && player.worldObj != null) {
-            try {
-                ChunkProviderServer cps = ((WorldServer)player.worldObj).theChunkProviderServer;
-
-                if (cps != null && cps.chunkExists(player.chunkCoordX, player.chunkCoordZ)) {
-                    Chunk chunk = cps.provideChunk(player.chunkCoordX, player.chunkCoordZ);
-                    final int k = player.chunkCoordY;
-                    if (chunk != null && k > -1 && k < chunk.entityLists.length) {
-                        List list = chunk.entityLists[k];
-                        
-                        for (int i = 0; i < list.size(); i++) {
-                            Object e = list.get(i);
-                            ///*DEBUG*/System.out.println(e);
-                            if (e != null && clazz.isAssignableFrom(e.getClass())) {
-                                return (Entity) e;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception e) {
-            }
-        }
-        return null;
-    }
-
     /**
      * Guard to endit CustomNPC
      * Only for op-player has permission customnpcs.npc.gui 
@@ -200,11 +167,52 @@ public class NpcUtil {
         return false;
     }
 
+    public static boolean addBackDialogOptionTo(Dialog dialog, int toDialogId, String backTitle) {
+        if (dialog != null && toDialogId > -1) {
+            //add only on exists dialogs Id
+            if (DialogController.instance.dialogs != null && DialogController.instance.dialogs.containsKey(toDialogId)) {
+                //String backTitle = BooksKeeper.instance().getBackTitle();
+                if (backTitle != null && !backTitle.isEmpty() && BooksKeeper.getDialog(toDialogId) != null && toDialogId != dialog.id) {
+                    DialogOption backOption = new DialogOption();
+                    backOption.optionType = EnumOptionType.DialogOption;
+                    backOption.dialogId = toDialogId;
+                    backOption.title = backTitle;//"Back"
+                    dialog.options.put(99, backOption);
+                    NpcUtil.saveDialog(dialog);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
-    
+    public static boolean addQuitDialogOption(Dialog dialog, int slot, String quitTitle) {
+        if (dialog != null) {
+            //add only on exists dialogs Id
+            if (DialogController.instance.dialogs != null &&
+                quitTitle != null && !quitTitle.isEmpty() && slot >-1 && !dialog.options.containsKey(slot)) {
+                DialogOption backOption = new DialogOption();
+                backOption.optionType = EnumOptionType.QuitOption;
+                backOption.dialogId = -1;
+                backOption.title = quitTitle; //"Quit"
+                dialog.options.put(slot, backOption);
+                //save
+                NpcUtil.saveDialog(dialog);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //------------------------------------------------------------------------\\
+
     public static Map safe(Map map) {
         return (map == null) ? Collections.EMPTY_MAP : map;
     }
+
+    //------------------------------------------------------------------------\\
+    //                      MC ItemStack NBT tools
+    //------------------------------------------------------------------------\\
 
     public static boolean hasDisplayTag(ItemStack is) {
         return (is != null && is.stackTagCompound != null && is.stackTagCompound.hasKey("display", 10));
@@ -252,7 +260,38 @@ public class NpcUtil {
         }
         return null;
     }
+    
+    /**
+     * Temporary waitfor mcCoreLib dependency
+     * Look up entity only in same chunk!
+     * @param player
+     * @param clazz
+     * @return
+     */
+    public static Entity getFirsNearestEntity(EntityPlayerMP player, Class clazz) {
+        if (player != null && player.worldObj != null) {
+            try {
+                ChunkProviderServer cps = ((WorldServer)player.worldObj).theChunkProviderServer;
 
+                if (cps != null && cps.chunkExists(player.chunkCoordX, player.chunkCoordZ)) {
+                    Chunk chunk = cps.provideChunk(player.chunkCoordX, player.chunkCoordZ);
+                    final int k = player.chunkCoordY;
+                    if (chunk != null && k > -1 && k < chunk.entityLists.length) {
+                        List list = chunk.entityLists[k];
 
-
+                        for (int i = 0; i < list.size(); i++) {
+                            Object e = list.get(i);
+                            ///*DEBUG*/System.out.println(e);
+                            if (e != null && clazz.isAssignableFrom(e.getClass())) {
+                                return (Entity) e;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {
+            }
+        }
+        return null;
+    }
 }

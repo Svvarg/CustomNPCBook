@@ -26,17 +26,24 @@ import org.swarg.mc.custombook.util.BookConverter;
  */
 public class CommandCustomBooks extends CommandBase {
     private final List<String> aliases;
+    private final List<String> tab;
     /*used to free dialogsId on remove last yang Dialogs pack*/
     private boolean packCreated;
 
     public CommandCustomBooks() {
         this.aliases = new ArrayList<String>();
         this.aliases.add("cb");
+        this.tab = new ArrayList();
+        tab.add("status");tab.add("reload");tab.add("display");tab.add("quest-tag");tab.add("jump-to-dim");tab.add("convert");
     }
     
     @Override
     public List<String> getCommandAliases() {
         return this.aliases;
+    }
+    @Override
+    public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        return tab;
     }
 
     @Override
@@ -74,6 +81,11 @@ public class CommandCustomBooks extends CommandBase {
             response = BooksKeeper.instance().status();
         }
 
+        else if (w.isCmd("debug")) {
+            BooksKeeper.instance().debug = w.argB(w.ai++);
+            response = "Debug: " + BooksKeeper.instance().debug;
+        }
+
         //commands only for op-player
         else if (NpcUtil.canPlayerEditNpc(sender, false, true)) {
             response = "UKNOWN";
@@ -92,7 +104,7 @@ public class CommandCustomBooks extends CommandBase {
             }
 
             //set display name|lore of ItemStack Display  or remove it
-            else if (w.isCmd("display", "di") && sender instanceof EntityPlayer) {
+            else if (w.isCmd("display", "d") && sender instanceof EntityPlayer) {
                 response = cmdDisplayTag(w, sender);
             }
 

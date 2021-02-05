@@ -18,7 +18,7 @@ public class CustomBooksAchievements {
 
     public static void register () {
         aOpenGuideBook = new Achievement("achievement.OpenGuideBook", "OpenGuideBook", 0, -1, ItemCustomBook.customBook, null).registerStat();
-        aQuitFromSpawn = new Achievement("achievement.QuitFromSpawn", "QuitFromSpawn", -1, 0, Items.leather_boots, null).registerStat();
+        aQuitFromSpawn = new Achievement("achievement.QuitFromSpawn", "QuitFromSpawn", -1, 0, Items.leather_boots, null).registerStat();//todo sync with "multiverse-core" plugin dimension tp
         
 	//pageBiome = new AchievementPage("TerraFirmaCraft", achievementsTFC);
 	//AchievementPage.registerAchievementPage(pageBiome);

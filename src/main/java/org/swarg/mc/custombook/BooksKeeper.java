@@ -43,7 +43,7 @@ public class BooksKeeper {
                     // meta    dialogId
     private final Map<Integer, Integer> metaToDialogId = new HashMap<Integer, Integer>();
     private String backTitle = "Back"; //for autogenerate for command custombook dialog #id option add-new option name one \ option two \ the best option
-    private boolean debug = false;
+    public boolean debug;
 
 
     public static BooksKeeper instance() {
@@ -224,6 +224,9 @@ public class BooksKeeper {
         //sb.append("BookKeeperDummyNPC:").append( this.bookKeeper == null ? '-' : '+').append(' ');
         //int kbsz = this.bookKeeper.dialogs == null ? 0 : this.bookKeeper.dialogs.size();
         //sb.append("DialogsInKeeper: ").append( kbsz );
+        if (debug) {
+            sb.append("[DebugMode]");
+        }
 
         //final int sz = this.dialogIds.length;
         final int sz = this.metaToDialogId.size();
