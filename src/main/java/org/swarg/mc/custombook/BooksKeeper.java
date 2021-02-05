@@ -9,16 +9,15 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ChatComponentTranslation;
 import noppes.npcs.NoppesUtilServer;
 
 import noppes.npcs.Server;
 import noppes.npcs.entity.EntityDialogNpc;
 import noppes.npcs.constants.EnumPacketClient;
 import noppes.npcs.controllers.PlayerDataController;
-import noppes.npcs.controllers.PlayerDialogData;
 import noppes.npcs.controllers.DialogController;
 import noppes.npcs.controllers.DialogCategory;
-import noppes.npcs.controllers.DialogOption;
 import noppes.npcs.controllers.Dialog;
 
 import org.swarg.mc.custombook.util.NpcUtil;
@@ -44,7 +43,7 @@ public class BooksKeeper {
                     // meta    dialogId
     private final Map<Integer, Integer> metaToDialogId = new HashMap<Integer, Integer>();
     private String backTitle = "Back"; //for autogenerate for command custombook dialog #id option add-new option name one \ option two \ the best option
-    private boolean debug = true;
+    private boolean debug = false;
 
 
     public static BooksKeeper instance() {
@@ -85,10 +84,15 @@ public class BooksKeeper {
                 //Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG, new Object[]{ Integer.valueOf(keeper.getEntityId()), dialog.writeToNBT(new NBTTagCompound()) });
                 //without this, will not be able to activate the child dialog-options
                 NoppesUtilServer.setEditingNpc(player, bookKeeper);
+
+                if (meta == 0) { //!player.func_147099_x().hasAchievementUnlocked()
+                    //counter of guide book usage
+                    player.addStat(CustomBooksAchievements.aOpenGuideBook, 1);
+                }
             }
             else {
                 //itembook meta corresponds DialogCategoryIndex in exists dialogs BOOK_<Slot>
-                player.addChatMessage(new ChatComponentText("Locked"));
+                player.addChatMessage(new ChatComponentTranslation("commands.CustomNPCBooks.locked"));//Sealed
                 debugOpMsg(player, "No DialogId for meta: " + meta);
             }
         }
@@ -217,9 +221,9 @@ public class BooksKeeper {
 
     public String status() {
         StringBuilder sb = new StringBuilder();
-        sb.append("BookKeeperDummyNPC:").append( this.bookKeeper == null ? '-' : '+').append(' ');
-        int kbsz = this.bookKeeper.dialogs == null ? 0 : this.bookKeeper.dialogs.size();
-        sb.append("DialogsInKeeper: ").append( kbsz );
+        //sb.append("BookKeeperDummyNPC:").append( this.bookKeeper == null ? '-' : '+').append(' ');
+        //int kbsz = this.bookKeeper.dialogs == null ? 0 : this.bookKeeper.dialogs.size();
+        //sb.append("DialogsInKeeper: ").append( kbsz );
 
         //final int sz = this.dialogIds.length;
         final int sz = this.metaToDialogId.size();
@@ -259,6 +263,7 @@ public class BooksKeeper {
         return sb.toString();
     }
 
+    //used in autoadd back from dialogoption
     public String getBackTitle() {
         return backTitle;
     }

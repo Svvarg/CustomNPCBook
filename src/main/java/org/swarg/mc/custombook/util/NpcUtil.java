@@ -3,8 +3,10 @@ package org.swarg.mc.custombook.util;
 import java.util.Map;
 import java.util.Collections;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.command.PlayerSelector;
 import net.minecraft.entity.Entity;
 
 import net.minecraft.item.ItemStack;
@@ -28,6 +30,8 @@ import noppes.npcs.CustomNpcsPermissions;
 
 import noppes.npcs.controllers.Dialog;
 import noppes.npcs.controllers.DialogController;
+import noppes.npcs.controllers.PlayerData;
+import noppes.npcs.controllers.PlayerDataController;
 import noppes.npcs.entity.EntityNPCInterface;
 
 /**

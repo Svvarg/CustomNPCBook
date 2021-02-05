@@ -33,7 +33,6 @@ public class ItemCustomBook extends Item {
         BooksKeeper.instance().openBookDialog(player, stack);
         return true;
     }
-
     /**
      * Fired if no block near
      * @return

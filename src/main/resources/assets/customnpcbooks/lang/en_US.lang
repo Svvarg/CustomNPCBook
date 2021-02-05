@@ -1,0 +1,9 @@
+item.CustomNPCBooks.book.guide.name=Guide Book
+item.CustomNPCBooks.book.rare.name=Rare Book 
+
+commands.CustomNPCBooks.locked=Locked
+
+achievement.OpenGuideBook=Hunger for knowledge
+achievement.QuitFromSpawn=Ready for adventure!
+achievement.OpenGuideBook.desc=Open the knowledge book
+achievement.QuitFromSpawn.desc=Leave the spawn dimension

@@ -3,57 +3,71 @@ package org.swarg.mc.custombook.handlers;
 import java.io.File;
 import java.util.Map;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.time.Instant;
+import java.time.ZoneId;
+
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.nbt.NBTTagString;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChatComponentText;
 
 import noppes.npcs.Server;
-import noppes.npcs.NoppesUtilPlayer;
 import noppes.npcs.NoppesUtilServer;
-import noppes.npcs.client.NoppesUtil;
 import noppes.npcs.constants.EnumGuiType;
 import noppes.npcs.constants.EnumOptionType;
 import noppes.npcs.constants.EnumPacketClient;
-import noppes.npcs.constants.EnumPacketServer;
+import noppes.npcs.constants.EnumQuestRepeat;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.DialogController;
 import noppes.npcs.controllers.DialogOption;
 import noppes.npcs.controllers.Dialog;
+import noppes.npcs.controllers.PlayerData;
+import noppes.npcs.controllers.PlayerDataController;
+import noppes.npcs.controllers.PlayerDialogData;
+import noppes.npcs.controllers.PlayerQuestData;
+import noppes.npcs.controllers.QuestCategory;
+import noppes.npcs.controllers.QuestController;
+import noppes.npcs.controllers.QuestData;
+import noppes.npcs.controllers.Quest;
 
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.custombook.BooksKeeper;
 import org.swarg.mc.custombook.util.NpcUtil;
-import org.swarg.mc.custombook.util.BookConverter;
 import static org.swarg.mc.custombook.util.NpcUtil.safe;
 
 
 /**
- * 02-02-21
+ * 05-02-21
  * @author Swarg
  */
-public class CommandCustomBook extends CommandBase {
+public class CommandCustomExtension extends CommandBase {
+
+    public static final java.time.format.DateTimeFormatter DT_FORMAT = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd.MM.yy");
+    
     private final List<String> aliases;
     /*used to free dialogsId on remove last yang Dialogs pack*/
     private boolean packCreated;
 
-    public CommandCustomBook() {
+    public CommandCustomExtension() {
         this.aliases = new ArrayList<String>();
-        this.aliases.add("cb");
+        this.aliases.add("cx");//custom-eXtension
     }
-    
+
     @Override
     public List<String> getCommandAliases() {
         return this.aliases;
+    }
+
+    public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        System.out.println(args);
+        return Collections.EMPTY_LIST;
     }
 
     @Override
@@ -63,77 +77,43 @@ public class CommandCustomBook extends CommandBase {
 
     @Override
     public String getCommandName() {
-        return "custombook";
+        return "customextension";
     }
 
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<status/reload/dialog/quest-tag/display/jump-to-dim/convert>";
+        return "<dialog/player-data>";
     }
 
-    private static final String QUESTTAG = "uQuestTag";
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         String response = null;
-        
+
         ArgsWrapper w = new ArgsWrapper(args);
 
         if (w.isHelpCmdOrNoArgs()) {
             response = getCommandUsage(sender);
-        }
-        else if (w.isCmd("reload")) {
-            //BooksKeeper.instance().setupMappingDialogsToBooks();
-            BooksKeeper.instance().reload();
-            response = "done";//todo status
-        }
-        
-        else if (w.isCmd("status", "st")) {
-            response = BooksKeeper.instance().status();
         }
 
         //commands only for op-player
         else if (NpcUtil.canPlayerEditNpc(sender, false, true)) {
             response = "UKNOWN";
 
-            //debug
-            if (w.isCmd("jump-to-dim", "j2d")) {
-                response = cmdJumpToDim(w, sender);
-            }
-
-
             //-------------------------- tools -----------------------------------\\
-            else if (w.isCmd("dialog", "d")) {
+            if (w.isCmd("dialog", "d")) {
                 response = cmdDialog(w, sender);
             }
-
-            //add to ItemStack unique nbt taq (For use in Quests)
-            else if (w.isCmd("quest-tag", "qt") && sender instanceof EntityPlayer) {
-                response = cmdQuestTag(w, sender);
-            }
-
-            //set display name|lore of ItemStack Display  or remove it
-            else if (w.isCmd("display", "di") && sender instanceof EntityPlayer) {
-                response = cmdDisplayTag(w, sender);
-            }
-
-
-            else if (w.isCmd("convert") && sender instanceof EntityPlayer) {
-                ItemStack is = ((EntityPlayer)sender).getHeldItem();
-
-                if (is == null || !is.hasTagCompound()) {
-                    response = "Not found Valid book";
+            else if (w.isCmd("player-data", "pd")) {
+                try {
+                    response = cmdPlayerData(w, sender);
                 }
-                else {
-                    String text = new BookConverter().convertBigBookToText(is);
-                    if (text != null) {
-                        //todo limit for too big books
-                        response = text;
-                    }
+                catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }
-        
+
         //output to op
         if (response != null) {
             // multiline
@@ -147,178 +127,17 @@ public class CommandCustomBook extends CommandBase {
             else {
                 sender.addChatMessage(new ChatComponentText(response));
             }
-        }        
+        }
     }
 
       //  ==============------
      // Implementation
-    
-
-    //Debug
-    private String cmdJumpToDim(ArgsWrapper w, ICommandSender sender) {
-        String response = "?";
-        if (w.isHelpCmdOrNoArgs()) {
-            response = "dimId x y z";
-        }
-        else if (sender instanceof EntityPlayerMP && NoppesUtilServer.isOp((EntityPlayerMP)sender)) {
-            int dim = w.argI(w.ai++, Integer.MIN_VALUE);
-            int x   = w.argI(w.ai++, 0);
-            int y   = w.argI(w.ai++, 170);
-            int z   = w.argI(w.ai++, 0);
-            if (dim > Integer.MIN_VALUE) {
-                NoppesUtilPlayer.teleportPlayer( (EntityPlayerMP)sender, x, y, z, dim);
-                response = "Teleported to Dimension: " + dim;
-            }
-        }
-        return response;
-    }
-
-    //edit display data of itemstack
-    private String cmdDisplayTag(ArgsWrapper w, ICommandSender sender) {
-        String response = "?";
-        if (w.isHelpCmdOrNoArgs()) {
-            response = "display <set-name/set-lore/set-color/remove>";
-        }
-        else {
-            ItemStack is = ((EntityPlayer)sender).getHeldItem();
-
-            if (is == null) {
-                response = "Take the item in your hands";
-            }
-            else {
-                //cb display set-name (nameWord1) (nameWord2) (nameWordN)
-                if (w.isCmd("set-name", "sn")) {
-                    String name = w.join(w.ai);
-                    if (name != null && !name.isEmpty()) {
-                        is.setStackDisplayName( name );
-                        response = "Changed";
-                    }
-                    else {
-                        response = "illegal empty name";
-                    }
-                }
-                // set-lore word1 w2 w2 \ w3  | set-lore -append
-                // "\" - sepatate to new line
-                else if (w.isCmd("set-lore", "sl")) {
-                    if (w.isHelpCmdOrNoArgs()) {
-                        response = "set-lore word1 w2 w2 \\ w3  | set-lore -append word1 w2 \\ w3";
-                    }
-                    else  {
-                        NBTTagCompound nbtDisplay = NpcUtil.getDisplayTag(is, true);
-                        
-                        NBTTagList lore = null;
-                        //append to exist lore
-                        if (w.isCmd("-append", "-a")) {
-                            lore = NpcUtil.getLoreTag(is.stackTagCompound);
-                        }
-                        if (lore == null) {
-                            lore = new NBTTagList();
-                        }
-                        StringBuilder sb = new StringBuilder();
-
-                        while (w.argsRemain() > 0) {
-                            String word = w.arg(w.ai++);
-                            if ("\\".equals(word)) {
-                                lore.appendTag(new NBTTagString( sb.toString() ));
-                                sb.setLength(0);
-                            } else {
-                                sb.append(word).append(' ');
-                            }
-                        }
-
-                        if (sb.length() > 0) {
-                            lore.appendTag(new NBTTagString(sb.toString()));
-                        }
-                        if (!is.hasTagCompound()) {
-                            is.stackTagCompound = new NBTTagCompound();
-
-                        }
-                        
-                        if (nbtDisplay != null) {
-                            nbtDisplay.setTag("Lore", lore);
-                            response = "Done. +Lore";
-                        }
-                    }
-                }
-
-                else if (w.isCmd("set-color", "sc")) {
-                    int color = w.argI(w.ai++, -1);
-                    if (color > -1) {
-                        NBTTagCompound nbtDisplay = NpcUtil.getDisplayTag(is, true);
-                        nbtDisplay.setInteger("color", color);
-                        response = "Done";
-                    }
-                }
-
-                //todo tfc data of creating...
-
-                //remove display tags
-                else if (w.isCmd("remove", "r")) {
-                    if (is.hasTagCompound() && is.stackTagCompound.hasKey("display") ) {
-                        is.stackTagCompound.removeTag("display");
-                        if (is.stackTagCompound.hasNoTags()) {
-                            is.stackTagCompound = null;
-                            response = "Removed NBT";
-                        } else {
-                            response = "Removed Display Tag Only";
-                        }
-                    } else {
-                        response = "No Dispay Tag";
-                    }
-                }
-            }
-        }
-        return response;
-    }
-
-    //macke itemstack unique
-    private String cmdQuestTag(ArgsWrapper w, ICommandSender sender) {
-        String response = "?";
-        ItemStack is = ((EntityPlayer)sender).getHeldItem();
-        if (is == null) {
-            response = "Take the item in your hands";
-        }
-        else {
-            if (w.isHelpCmdOrNoArgs()) {
-                response = "<add/remove/show>";
-            } else {
-                if (w.isCmd("show", "s")) {
-                    if (is.hasTagCompound() && is.stackTagCompound.hasKey(QUESTTAG)) {
-                        response = String.valueOf( is.stackTagCompound.getInteger(QUESTTAG) );
-                    } else {
-                        response = "Tag not found";
-                    }
-                }
-                else if (w.isCmd("add", "a")) {
-                    if (!is.hasTagCompound()) {
-                        is.stackTagCompound = new NBTTagCompound();
-                    }
-                    int tag = w.argI(w.ai++, (int) (System.currentTimeMillis() / 1000L) );
-                    is.stackTagCompound.setInteger(QUESTTAG, tag);
-                    response = QUESTTAG + ":" + tag;
-                }
-                else if (w.isCmd("remove", "r")) {
-                    if (is.hasTagCompound() && is.stackTagCompound.hasKey(QUESTTAG) ) {
-                        is.stackTagCompound.removeTag(QUESTTAG);
-                        if (is.stackTagCompound.hasNoTags()) {
-                            is.stackTagCompound = null;
-                        }
-                    } else {
-                        response = "No " + QUESTTAG;
-                    }
-                }
-            }
-        }
-        return response;
-    }
-
-
 
     /**
-     * 
+     *
      * @param w
      * @param sender
-     * @return 
+     * @return
      */
     private String cmdDialog(ArgsWrapper w, ICommandSender sender) {
         String response = "?";
@@ -341,7 +160,7 @@ public class CommandCustomBook extends CommandBase {
                 BooksKeeper.instance().setBackTitle(response);
             }
         }
-        
+
 
         int dialogId = w.argI(w.ai++, -1);
         Dialog dialog = (Dialog) DialogController.instance.dialogs.get( dialogId );
@@ -354,7 +173,7 @@ public class CommandCustomBook extends CommandBase {
             response = cmdDialogStatus(dialog, w);
         }
         //cb dialog #id edit
-        if (w.noArgs() || w.isCmd("edit", "e")) {
+        else if (w.isCmd("edit", "e")) {
             response = cmdDialogEdit(dialog, w);
         }
 
@@ -440,7 +259,7 @@ public class CommandCustomBook extends CommandBase {
                     response = "Not Found dialog-option for slot:" + w.arg(w.ai - 1);
                 }
             }
-            
+
             //remove all DialogOption from current dialog, and dialogs by DialogOption.dialogId form mem and disk
             else if (w.isCmd("clean", "clear")) {
                 int counter = 0;
@@ -505,7 +324,6 @@ public class CommandCustomBook extends CommandBase {
     }
 
 
-
     public String cmdDialogStatus(Dialog dialog, ArgsWrapper w) {
         StringBuilder sb = new StringBuilder();
         if (dialog.category != null) {
@@ -528,7 +346,7 @@ public class CommandCustomBook extends CommandBase {
                 } else {
                     sb.append(slot).append(" null\n");//check illigal state
                 }
-                
+
             }
         } else {
             sb.append("Empty");
@@ -536,10 +354,16 @@ public class CommandCustomBook extends CommandBase {
         return sb.toString();
     }
 
+    /**
+     *
+     * @param dialog
+     * @param w
+     * @return
+     */
     public String cmdDialogEdit(Dialog dialog, ArgsWrapper w) {
         String response = "?";
         if (w == null || w.isHelpCmdOrNoArgs()) {
-            return "<quest/show-wheel/command>";
+            return "<quest (N) / show-wheel (bool) / sound (str) / command (multi args)>";
         }
 
         boolean mod = false;
@@ -574,15 +398,22 @@ public class CommandCustomBook extends CommandBase {
     }
 
 
-    //cb dialog #id script lang filename <save|load|delete>
+
+    /**
+     * cb dialog #id script lang filename (save|load|delete)
+     * @param sender
+     * @param w
+     * @param dialog
+     * @return
+     */
     public String cmdDialogScript(ICommandSender sender, ArgsWrapper w, Dialog dialog) {
         String response = "?";
 
         //check for op permision 'customnpcs.npc.gui' and edit-tool in hand
         if (dialog != null && NpcUtil.canPlayerEditNpc(sender, true, true)) {
-
+            final String usage = "(lang) (scriptfilename) <save/load/delete>";
             if (w.isHelpCmdOrNoArgs()) {
-                return "(lang) (scriptfilename) <save/load/delete>";
+                return usage;
             }
 
             String lang = w.arg(w.ai++);    // "scala" javascript??
@@ -599,14 +430,13 @@ public class CommandCustomBook extends CommandBase {
             if (w.isCmd("save")) {
                 if (dialog.text != null && !dialog.text.isEmpty()) {
                     java.io.File scriptDir = new java.io.File(noppes.npcs.CustomNpcs.getWorldSaveDirectory(), "scripts");
-                    
+
                         scriptDir = new java.io.File(scriptDir, lang);
                         if (!scriptDir.exists()) {
                             scriptDir.mkdirs();
                         }
                         if (!filename.isEmpty() && filename.indexOf('/') < 0 && filename.indexOf('\\') < 0) {
                             try {
-                                //org.apache.commons.io.FilenameUtils.
                                 java.io.File file = new java.io.File(scriptDir, filename);
                                 org.apache.commons.io.FileUtils.write(file, dialog.text, org.apache.commons.io.Charsets.UTF_8);
                                 response = "Saved content of dialogId " + dialog.id + " to " + lang + File.separator + filename + " (for update use 'noppes script reload')";
@@ -617,7 +447,7 @@ public class CommandCustomBook extends CommandBase {
                         } else {
                             response = "Error: illegal scriptname";
                         }
-                    
+
                 } else {
                     response = "Error:Empty content in dialogId: " + dialog.id;
                 }
@@ -630,7 +460,7 @@ public class CommandCustomBook extends CommandBase {
                     if (file.exists()) {
                         dialog.text = org.apache.commons.io.FileUtils.readFileToString(file, org.apache.commons.io.Charsets.UTF_8);
                         NpcUtil.saveDialog(dialog);
-                        response = "Loaded to DialogId:" + dialog.id + " length: "+ (dialog.text==null ? -1 : dialog.text.length());
+                        response = "Script " + filename + " Loaded to DialogId:" + dialog.id + " length: "+ (dialog.text==null ? -1 : dialog.text.length());
                     } else {
                         response = "Not Found: "+ lang + "/" + filename;
                     }
@@ -649,7 +479,7 @@ public class CommandCustomBook extends CommandBase {
                 }
             }
             else {
-                response = "UKNOWN " + w.arg(w.ai-1);
+                response = "UKNOWN " + w.arg(w.ai-1) + " USAGE:"+ usage;
             }
         }
         return response;
@@ -707,7 +537,7 @@ public class CommandCustomBook extends CommandBase {
                 dop.optionColor = w.argI(w.ai++);
                 mod = last != dop.optionColor;
             }
-            
+
             StringBuilder sb = new StringBuilder();
             if (mod) {
               sb.append("[Modified] ");
@@ -727,7 +557,7 @@ public class CommandCustomBook extends CommandBase {
 
 
     /**
-     * 
+     *
      * @param dialog
      * @param w
      * @return
@@ -843,11 +673,11 @@ public class CommandCustomBook extends CommandBase {
                 //save
                 NpcUtil.saveDialog(dialog);
                 return true;
-            }            
+            }
         }
         return false;
     }
-    
+
     /**
      * Move option from Slot to new Slot if in new Slot has other option
      * other option will be moved to from Slot
@@ -873,4 +703,207 @@ public class CommandCustomBook extends CommandBase {
             return "Moved option from: " + fromSlot + " to: " + toSlot;
         }
     }
+
+    /**
+     *
+     * @param w
+     * @param sender
+     * @return
+     * cb pd quest
+     */
+    private String cmdPlayerData(ArgsWrapper w, ICommandSender sender) {
+        if (w.isHelpCmdOrNoArgs()) {
+            return "(player-name) <status/quest/dialogs>";
+        }
+
+        String playerName = w.arg(w.ai++);
+        EntityPlayerMP player = getPlayer(sender, playerName); //can throw
+        if (player == null) {
+            return "not found player " + playerName;
+        }
+        String response = "?";
+
+        PlayerData data = PlayerDataController.instance.getPlayerData(player);
+        if (data == null) {
+            return "null data for " + playerName;
+        }
+        playerName = player.getCommandSenderName();
+
+        //=============
+        if (w.noArgs() || w.isCmd("status", "st")) {
+            NBTTagCompound nbt = new NBTTagCompound();
+            StringBuilder sb = new StringBuilder(" = Status ").append(playerName).append(" =\n");
+            data.factionData.saveNBTData(nbt);
+            sb.append(nbt.toString());
+            sb.append("\nQuest")
+              .append(" Finished: ")  .append(data.questData.finishedQuests.size())
+              .append(" Active:")     .append(data.questData.finishedQuests.size()).append('\n');
+            sb.append("DialogsReaded").append(data.dialogData.dialogsRead.size()).append('\n');
+            response = sb.toString();
+        }
+
+        //=============
+        else if (w.isCmd("quest", "q")) {
+            if (w.isHelpCmdOrNoArgs()) {
+                return " active | finished [-repeated-only] | is-finished (questId) | catigories";
+            }
+            PlayerQuestData qd = data.questData;
+            if (w.isCmd("catigories", "c")) {
+                Iterator<QuestCategory> iter = QuestController.instance.categories.values().iterator();
+                StringBuilder sb = new StringBuilder();
+                sb.append("#QCatId Title QuestCount\n");
+                while(iter.hasNext()) {
+                    QuestCategory qc = iter.next();
+                    if (qc != null) {
+                        sb.append("#").append(qc.id).append(' ').append(qc.title).append(' ').append(qc.quests.size()).append('\n');
+                    }
+                }
+                response = sb.toString();
+            }
+            //---------
+            else if (w.isCmd("is-finished", "if")) {
+                int qId = w.argI(w.ai++, -1);
+                if (qId > -1) {
+                    Long completeTime = qd.finishedQuests.get(qId);
+                    Quest q = QuestController.instance.quests.get(qId);
+                    if (q != null) {
+                        String title = q.title;
+                        String time = null;
+                        if (completeTime != null) {
+                            Instant instant = Instant.ofEpochMilli(completeTime);
+                            time = instant.atZone(ZoneId.systemDefault()).format(DT_FORMAT);
+                        }
+                        response = "QuestId:" + qId +" "+ title + " "+ (completeTime == null ? "Not Finished" : ("Finished at " + time +" "+ completeTime));
+                    } else {
+                        response = "Not found Quest fo Id:" + qId;
+                        if (completeTime != null) {
+                            response += "But has CompleteTime:" + completeTime;
+                        }
+                    }
+
+                }
+            }
+            //---------
+            else if (w.isCmd("active", "a")) {
+                if (qd.activeQuests.size() > 0) {
+                    Integer catId = w.argI(w.ai++, -1);//filter
+
+                    Iterator<QuestData> iter = qd.activeQuests.values().iterator();
+                    StringBuilder sb = new StringBuilder("=Active Quests [").append(playerName).append("]\n");
+
+                    while(iter.hasNext()) {
+                        QuestData q = iter.next();
+                        if (q != null&& q.quest != null) {
+                            if (catId > -1 && catId != q.quest.category.id) { //filter by QuestCateg)
+                                continue;
+                            }
+                            sb.append( String.format("% ,3d [%8s] [%10s] %s\n",
+                              q.quest.id, q.quest.type, q.quest.repeat, q.quest.title));
+                        }
+                        response = sb.toString();
+                    }
+                } else {
+                    response = "No active quest in " + playerName;
+                }
+            }
+            //---------
+            else if (w.isCmd("finished", "f")) {
+                boolean onlyRepeated = w.hasOpt("-repeated-only", "-r");
+                Integer catId = w.argI(w.ai++, -1);//filter
+
+                if (qd.activeQuests.size() > 0) {
+                    Iterator<Integer> iter = qd.finishedQuests.keySet().iterator();
+                    StringBuilder sb = new StringBuilder("= Finished Quests [").append(playerName).append("]\n");
+                    while(iter.hasNext()) {
+                        Integer qId = iter.next();
+                        Quest quest = QuestController.instance.quests.get(qId);
+                        if (quest != null ) {
+                            if (catId > -1 && catId != quest.category.id //filter by QuestCat
+                                || onlyRepeated && quest.repeat == EnumQuestRepeat.NONE) {
+                                continue;
+                            }
+                            sb.append( String.format("% ,3d [%8s] [%10s] %s\n",
+                              quest.id, quest.type, quest.repeat, quest.title));
+                        }
+                    }
+                    response = sb.toString();
+                } else {
+                    response = "empty";
+                }
+            }
+        }
+        //=============
+        else if (w.isCmd("dialogs", "d")) {
+            if (w.isHelpCmdOrNoArgs()) {
+                return "is-read (dialogId) | readed-in-category (catId) | catigories | total-readed";
+            }
+            PlayerDialogData dd = data.dialogData;
+            //---------
+            if (w.isCmd("is-read", "ir")) {
+                int dId = w.argI(w.ai++, -1);
+                if (dId > -1) {
+                    boolean read = dd.dialogsRead.contains(dId);
+                    Dialog d =  DialogController.instance.dialogs.get(dId);
+                    String title = d == null ? "[DialogNotFound]" : d.title;
+                    //may be a case when there is no dialog - "deleted" but the player has it marked as read
+                    response = "DialogId:" + dId +" "+ title + " DialogId-Readed-By-Player: " + read;
+                }
+            }
+            //---------
+            else if (w.isCmd("catigories", "c")) {
+                Iterator<DialogCategory> iter = DialogController.instance.categories.values().iterator();
+                StringBuilder sb = new StringBuilder();
+                sb.append("#DCatId Title DialogCount\n");
+                while(iter.hasNext()) {
+                    DialogCategory dc = iter.next();
+                    if (dc != null) {
+                        sb.append("#").append(dc.id).append(' ').append(dc.title).append(' ').append(dc.dialogs.size()).append('\n');
+                    }
+                }
+                response = sb.toString();
+            }
+            //---------
+            //show readed by specified player dialogs in defined category
+            else if (w.isCmd("readed-in-category", "ric")) {
+                if (w.isHelpCmd()) {
+                    return "(category-id)";
+                }
+                int cId = w.argI(w.ai++, -1);
+                DialogCategory dc = DialogController.instance.categories.get(cId);
+                if (dc != null) {
+                    if (dc.dialogs == null || dc.dialogs.size()==0) {
+                        response = "DialogCategory is Empty";
+                    } else {
+                        Iterator<Dialog> iter = dc.dialogs.values().iterator();
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("DialogCategory: '").append(dc.title).append("'\n");
+                        while(iter.hasNext()) {
+                            Dialog d = iter.next();
+                            if (d != null) {
+                                sb.append("DialogId:").append(d.id).append(' ').append(d.title); //d.availability;
+                                if (d.quest >-1) {
+                                    sb.append(" QuestId:").append(d.quest);
+                                }
+                                sb.append('\n');
+                            }
+                        }
+                        response = sb.toString();
+                    }
+                }
+                else {
+                    response = "Not found category for id: " + w.arg(w.ai-1);
+                }
+            }
+            //---------
+            else if (w.isCmd("total-readed", "tr")) {
+                response = "" + dd.dialogsRead.size();
+            }
+            else {
+                response = "UKNOWN " + w.arg(w.ai);
+            }
+        }
+        return response;
+    }
+
+
 }

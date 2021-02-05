@@ -1,0 +1,10 @@
+item.CustomNPCBooks.book.guide.name=Книга Знаний
+item.CustomNPCBooks.book.rare.name=Редкая Книга
+
+commands.CustomNPCBooks.locked=Запечатано
+
+achievement.OpenGuideBook=Жажда знаний
+achievement.QuitFromSpawn=Вперёд на встречу приключениям!
+achievement.OpenGuideBook.desc=Открыть книгу знаний
+achievement.QuitFromSpawn.desc=Покинуть измерение спавна
+
