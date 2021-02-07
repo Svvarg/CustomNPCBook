@@ -12,6 +12,11 @@ buildscript {
             name = "sonatype"
             url = "https://oss.sonatype.org/content/repositories/snapshots/"
         }
+        maven {
+            name = "ordinary"
+            url = "https://inferno.ordinary-minecraft.ru/maven2/"
+        }
+        
         mavenLocal()
     }
     dependencies {
