@@ -12,6 +12,10 @@ buildscript {
             name = "sonatype"
             url = "https://oss.sonatype.org/content/repositories/snapshots/"
         }
+        maven {
+            name = "ordinary"
+            url = "https://inferno.ordinary-minecraft.ru/maven2"
+        }
         mavenLocal()
     }
     dependencies {
@@ -40,8 +44,8 @@ repositories {
     mavenLocal() //def localMavenRepo = 'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath
     maven {
         name = "ordinary"
-        url = "https://inferno.ordinary-minecraft.ru/maven2/"
-    }    
+        url = "https://inferno.ordinary-minecraft.ru/maven2"
+    }
 }
 
 dependencies {
