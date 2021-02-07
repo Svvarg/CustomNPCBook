@@ -280,11 +280,11 @@ public class BooksKeeper {
     //                          --- UTILS ---
     
     
-    public static void debugOpMsg(EntityPlayer p, String msg, Object...args) {
-        if (NpcUtil.isOp(p) && msg != null) {
+    public void debugOpMsg(EntityPlayer player, String msg, Object...args) {
+        if (debug && NpcUtil.isOp(player) && msg != null) {
             try {
                 final String line = args == null || args.length == 0 ? msg : String.format(msg, args);
-                p.addChatMessage(new ChatComponentText( EnumChatFormatting.GOLD + "[DEBUG] "+ line));
+                player.addChatMessage(new ChatComponentText( EnumChatFormatting.GOLD + "[DEBUG] "+ line));
             } catch (Exception e) {
             }
         }

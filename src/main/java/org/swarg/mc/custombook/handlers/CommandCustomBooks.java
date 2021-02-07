@@ -6,17 +6,20 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 
-import noppes.npcs.NoppesUtilPlayer;
 import noppes.npcs.NoppesUtilServer;
 
 import org.swarg.cmds.ArgsWrapper;
+import org.swarg.mc.fixes.Fixes;
 import org.swarg.mc.custombook.BooksKeeper;
+import org.swarg.mc.custombook.CustomNPCBook;
 import org.swarg.mc.custombook.util.NpcUtil;
 import org.swarg.mc.custombook.util.BookConverter;
 
@@ -27,14 +30,12 @@ import org.swarg.mc.custombook.util.BookConverter;
 public class CommandCustomBooks extends CommandBase {
     private final List<String> aliases;
     private final List<String> tab;
-    /*used to free dialogsId on remove last yang Dialogs pack*/
-    private boolean packCreated;
 
     public CommandCustomBooks() {
         this.aliases = new ArrayList<String>();
         this.aliases.add("cb");
         this.tab = new ArrayList();
-        tab.add("status");tab.add("reload");tab.add("display");tab.add("quest-tag");tab.add("jump-to-dim");tab.add("convert");
+        tab.add("version");tab.add("status");tab.add("reload");tab.add("display");tab.add("quest-tag");tab.add("jump-to-dim");tab.add("convert");
     }
     
     @Override
@@ -58,7 +59,7 @@ public class CommandCustomBooks extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<status/reload/display/quest-tag/jump-to-dim/convert>";
+        return "<vesrion/status/reload/display/quest-tag/item/jump-to-dim/convert/fix>";
     }
 
 
@@ -70,6 +71,9 @@ public class CommandCustomBooks extends CommandBase {
 
         if (w.isHelpCmdOrNoArgs()) {
             response = getCommandUsage(sender);
+        }
+        else if (w.isCmd("version", "v")) {
+            response = CustomNPCBook.VERSION + "-b." + CustomNPCBook.BUILD;
         }
         else if (w.isCmd("reload")) {
             //BooksKeeper.instance().setupMappingDialogsToBooks();
@@ -86,6 +90,20 @@ public class CommandCustomBooks extends CommandBase {
             response = "Debug: " + BooksKeeper.instance().debug;
         }
 
+        else if (w.isCmd("check-gui-stat","cgs")) {//fix
+            boolean removeWrong = w.argB(w.ai++);
+            StringBuilder log = new StringBuilder();
+            Fixes.fixItemBasedStats(log, "[SERVER]", net.minecraft.stats.StatList.objectMineStats, removeWrong);//CustomNPCBook.logger
+            response = log.toString();
+        }
+        //experimental
+        else if (w.isCmd("null")) {
+            sender.addChatMessage(new ChatComponentTranslation(null));//new ChatComponentText(null));//make client crash
+        }
+
+        else if (w.isCmd("item", "i") && sender instanceof EntityPlayer) {
+            response = cmdItem(w, sender);
+        }
         //commands only for op-player
         else if (NpcUtil.canPlayerEditNpc(sender, false, true)) {
             response = "UKNOWN";
@@ -94,7 +112,6 @@ public class CommandCustomBooks extends CommandBase {
             if (w.isCmd("jump-to-dim", "j2d")) {
                 response = cmdJumpToDim(w, sender);
             }
-
 
             //-------------------------- tools -----------------------------------\\
 
@@ -124,6 +141,7 @@ public class CommandCustomBooks extends CommandBase {
                 }
             }
         }
+
         
         //output to op
         if (response != null) {
@@ -157,7 +175,7 @@ public class CommandCustomBooks extends CommandBase {
             int y   = w.argI(w.ai++, 170);
             int z   = w.argI(w.ai++, 0);
             if (dim > Integer.MIN_VALUE) {
-                NoppesUtilPlayer.teleportPlayer( (EntityPlayerMP)sender, x, y, z, dim);
+                noppes.npcs.NoppesUtilPlayer.teleportPlayer( (EntityPlayerMP)sender, x, y, z, dim);
                 response = "Teleported to Dimension: " + dim;
             }
         }
@@ -312,6 +330,25 @@ public class CommandCustomBooks extends CommandBase {
                     }
                 }
             }
+        }
+        return response;
+    }
+
+    //Experimental  for translation Lang files
+    //cb item
+    private String cmdItem(ArgsWrapper w, ICommandSender sender) {
+        String response = "?";
+        if (sender instanceof EntityPlayerMP) {
+            ItemStack is = ((EntityPlayerMP)sender).getHeldItem();
+            if (is == null) {
+                response = "Take the item in your hands";
+            } else {
+                Item item = is.getItem();
+                response = String.format("#%s:%s UnlocStackName: [%s] UnlockItemName: (%s)",
+                  Item.getIdFromItem(item), is.getItemDamage(), is.getUnlocalizedName(), item.getUnlocalizedName());
+            }
+        } else {
+            response = "todo for console";
         }
         return response;
     }

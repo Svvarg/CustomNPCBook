@@ -19,9 +19,8 @@ import net.minecraft.util.ChatComponentStyle;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.world.gen.ChunkProviderServer;
-import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.IChunkProvider;
 
 import noppes.npcs.CustomItems;
 import noppes.npcs.CustomNpcsPermissions;
@@ -31,6 +30,7 @@ import noppes.npcs.controllers.DialogOption;
 import noppes.npcs.controllers.Dialog;
 
 import org.swarg.mc.custombook.BooksKeeper;
+import static net.minecraft.util.StringUtils.isNullOrEmpty;
 
 /**
  * 04-02-21
@@ -167,17 +167,16 @@ public class NpcUtil {
         return false;
     }
 
-    public static boolean addBackDialogOptionTo(Dialog dialog, int toDialogId, String backTitle) {
-        if (dialog != null && toDialogId > -1) {
+    public static boolean addBackDialogOptionTo(Dialog dialog, int slot, int toDialogId, String title) {
+        if (dialog != null && toDialogId > -1 && slot > -1) {
             //add only on exists dialogs Id
             if (DialogController.instance.dialogs != null && DialogController.instance.dialogs.containsKey(toDialogId)) {
-                //String backTitle = BooksKeeper.instance().getBackTitle();
-                if (backTitle != null && !backTitle.isEmpty() && BooksKeeper.getDialog(toDialogId) != null && toDialogId != dialog.id) {
+                if (!isNullOrEmpty(title) && BooksKeeper.getDialog(toDialogId) != null && toDialogId != dialog.id) {
                     DialogOption backOption = new DialogOption();
                     backOption.optionType = EnumOptionType.DialogOption;
                     backOption.dialogId = toDialogId;
-                    backOption.title = backTitle;//"Back"
-                    dialog.options.put(99, backOption);
+                    backOption.title = title;
+                    dialog.options.put(slot, backOption);
                     NpcUtil.saveDialog(dialog);
                     return true;
                 }
@@ -268,13 +267,14 @@ public class NpcUtil {
      * @param clazz
      * @return
      */
-    public static Entity getFirsNearestEntity(EntityPlayerMP player, Class clazz) {
+    public static Entity getFirsNearestEntity(EntityPlayer player, Class clazz) {
         if (player != null && player.worldObj != null) {
             try {
-                ChunkProviderServer cps = ((WorldServer)player.worldObj).theChunkProviderServer;
+                //ChunkProviderServer cps = ((WorldServer)player.worldObj).theChunkProviderServer;
+                IChunkProvider cp = player.worldObj.getChunkProvider();
 
-                if (cps != null && cps.chunkExists(player.chunkCoordX, player.chunkCoordZ)) {
-                    Chunk chunk = cps.provideChunk(player.chunkCoordX, player.chunkCoordZ);
+                if (cp != null && cp.chunkExists(player.chunkCoordX, player.chunkCoordZ)) {
+                    Chunk chunk = cp.provideChunk(player.chunkCoordX, player.chunkCoordZ);
                     final int k = player.chunkCoordY;
                     if (chunk != null && k > -1 && k < chunk.entityLists.length) {
                         List list = chunk.entityLists[k];
@@ -294,4 +294,16 @@ public class NpcUtil {
         }
         return null;
     }
+
+    //alib
+    public static String exceptionTraceAsString(Throwable cause) {
+        if (cause != null) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            cause.printStackTrace(new java.io.PrintWriter(sw));
+            return sw.toString();
+        } else {
+            return null;
+        }
+    }
+
 }

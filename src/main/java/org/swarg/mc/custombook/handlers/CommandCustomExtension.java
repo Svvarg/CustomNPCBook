@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.time.Instant;
 import java.time.ZoneId;
 
@@ -43,9 +42,11 @@ import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.custombook.BooksKeeper;
 import org.swarg.mc.custombook.util.NpcUtil;
 import static org.swarg.mc.custombook.util.NpcUtil.safe;
+import static net.minecraft.util.StringUtils.isNullOrEmpty;
 
 
 /**
+ * Additional commands for CustomNPCs mod
  * 05-02-21
  * @author Swarg
  */
@@ -163,10 +164,11 @@ public class CommandCustomExtension extends CommandBase {
                 return "sbt (backOptionTitle)";
             } else {
                 response = w.arg(w.ai++, null);
-                BooksKeeper.instance().setBackTitle(response);
+                if (!isNullOrEmpty(response)) {
+                    BooksKeeper.instance().setBackTitle(response);
+                }
             }
         }
-
 
         int dialogId = w.argI(w.ai++, -1);
         Dialog dialog = (Dialog) DialogController.instance.dialogs.get( dialogId );
@@ -183,150 +185,54 @@ public class CommandCustomExtension extends CommandBase {
             response = cmdDialogEdit(dialog, w);
         }
 
-        else if (w.isCmd("text")) {
+        else if (w.isCmd("text", "t")) {
             response = dialog.text;
         }
 
         //show dialog in gui
         else if (w.isCmd("gui", "g") && sender instanceof EntityPlayerMP) {
-            EntityPlayerMP player = (EntityPlayerMP)sender;
-            EntityNPCInterface npc = (EntityNPCInterface) NpcUtil.getFirsNearestEntity(player, EntityNPCInterface.class);
-            if (npc != null) {
-                NoppesUtilServer.sendOpenGui(player, EnumGuiType.ManageDialogs, npc);//MainMenuDisplay
-                //открывает категодию диалога имя категории выбирается и становится редактируемым но не видно содержимое категории - диалоги в ней
-                //срабатывает только после 0 open ManageDialogs
-                DialogCategory dc = dialog.category;
-                if (dc != null) {
-                    NBTTagCompound nbt = dc.writeNBT(new NBTTagCompound());
-                    nbt.removeTag("Dialogs");
-                    Server.sendData(player, EnumPacketClient.GUI_DATA, new Object[]{nbt});
-                }
-                //todo show dialogs in category - "open category"
-                response = "Gui Opened";
-            } else {
-                response = "You need to stand in the same chunk with any CustomNpc";
-            }
+            sendOpenDialogGui(sender, dialog);
         }
 
         //DialogOptions - possible responses to the current dialog
-        // cb dialog #id options new option0-title o1-title o2-title... n
+        // cb dialog #id options add dialog option0-title o1-title o2-title... n
         else if (w.isCmd("options", "o")) {
-            if (w.isHelpCmdOrNoArgs()) {
-                return "<add-new/add-back/add-quit/remove/clean/edit/move>";
-            }
-            if (dialog.options == null) {
-                dialog.options = new HashMap();
-            }
-            //add add new options-dialogs to current dialog.options
-            // use \ for separate title names
-            if (w.isCmd("add-new", "an")) {
-                return cmdDialogOptionsAddNew(dialog, w);
-            }
-            // cb d #id add-back #toDialogId
-            else if (w.isCmd("add-back", "ab")) {
-                if (w.isHelpCmdOrNoArgs()) {
-                    response = "(#slot) [BackTitle]";
-                } else {
-                    int toDialogId = w.argI(w.ai++, -1);
-                    String backTitle = w.hasArg() ? w.join(w.ai) : BooksKeeper.instance().getBackTitle();
-                    boolean flag = NpcUtil.addBackDialogOptionTo(dialog, toDialogId, backTitle);
-                    response = "Back Added: " + flag + " to DialogId:" + toDialogId +" from DialogId: " + dialog.id;
-                }
-            }
-            else if (w.isCmd("add-quit", "aq")) {
-                if (w.isHelpCmdOrNoArgs()) {
-                    response = "(#slot) [QuitTitle]";
-                } else {
-                    int slot = w.argI(w.ai++, -1);
-                    String quitTitle = w.hasArg() ? w.join(w.ai) : "Quit";
-                    boolean flag = NpcUtil.addQuitDialogOption(dialog, slot, quitTitle);
-                    response = "Quit Added: " + flag + " to DialogId: " + dialog.id + " to DialogOptionSlot: " + slot;
-                }
-            }
-
-            //remove dialog option from current dialog.options and delete the dialog-option from disk
-            else if (w.isCmd("remove", "rm")) {
-                //remove one specific dialog-option from dialog.options by his slotIndex
-                Integer slot = w.argI(w.ai++, -1);
-                DialogOption roDialog = dialog.options.get(slot);
-                if (roDialog != null) {
-                    Dialog rDialog = DialogController.instance.dialogs.get(roDialog.dialogId);
-                    if (rDialog != null) {
-                        //from maps and disk
-                        DialogController.instance.removeDialog(rDialog);
-                    }
-                    //case then no dialog but has dialog-option slot
-                    Object removed = dialog.options.remove(slot);
-                    response = "Slot - Cleaned.  Dialog: " + removed == null ? "The slot was Empty" : "Removed";
-                    //save changes
-                    NpcUtil.saveDialog(dialog);
-                }
-                else {
-                    response = "Not Found dialog-option for slot:" + w.arg(w.ai - 1);
-                }
-            }
-
-            //remove all DialogOption from current dialog, and dialogs by DialogOption.dialogId form mem and disk
-            else if (w.isCmd("clean", "clear")) {
-                int counter = 0;
-                final int dosz = safe(dialog.options).size();
-                if (dosz > 0) {
-                    Iterator<Map.Entry<Integer, DialogOption>> iter = dialog.options.entrySet().iterator();
-                    while (iter.hasNext()) {
-                        Map.Entry<Integer, DialogOption> e = iter.next();
-                        //Integer slot = e.getKey();
-                        iter.remove(); //dialog.options.remove(slot);//from variants
-
-                        DialogOption dop = e.getValue();
-                        if (dop != null) {
-                            //from mem and disk
-                            Dialog rDialog = DialogController.instance.dialogs.get(dop.dialogId);
-                            if (rDialog != null) {
-                                DialogController.instance.removeDialog(rDialog);
-                                counter++;
-                            }
-                        }
-                    }
-                    //save changes
-                    NpcUtil.saveDialog(dialog);
-                                                         // slots    actual removed dialogs
-                    response = "Cleaned all dialog options["+dosz+"]: " + counter + " in DialogId:" + dialog.id;
-
-                    //if several dialog-option were created recently - check for lastDialogId trim space
-                    if (counter > 0 && this.packCreated) {
-                        this.packCreated = false;
-                        //trim last deleted dialogIds "save dialogId-name-space"
-                        NpcUtil.getLastDialogID(true);
-                    }
-                }
-                else {
-                    response = "Empty options in dialodId: " + dialog.id;
-                }
-            }
-            //for the ability to edit dialog-options in slots above 5
-            else if (w.isCmd("edit", "e")) {
-                response = cmdDialogOptionEdit(dialog, w);
-            }
-
-            //move DialogOptin to specific slot
-            else if (w.isCmd("move", "m")) {
-                response = cmdDialogOptionMove(dialog, w);
-            }
-            else {
-                response = "UKNOWN";
-            }
-
-        }//options
+            response = cmdDialogOption(w, sender, dialog);
+        }
 
         //cb dialog #dId script to-file (script-name)
         //save content of dialog.text to script-file to WordName/customnpc/scripts/
         else if (w.isCmd("script")) {
             return cmdDialogScript(sender, w, dialog);
         }
-        else response = "UKNOWN: "+ w.arg(w.ai++);
-
+        else
+            response = "UKNOWN: "+ w.arg(w.ai++);
 
         return response;
+    }
+
+    //todo how Send Packet to OpenSpecified Dialog?
+    //now opened only DialogCategory
+    public static boolean sendOpenDialogGui(ICommandSender sender, Dialog dialog) {
+        EntityPlayerMP player = (EntityPlayerMP)sender;
+        EntityNPCInterface npc = (EntityNPCInterface) NpcUtil.getFirsNearestEntity(player, EntityNPCInterface.class);
+        if (npc != null) {
+            NoppesUtilServer.sendOpenGui(player, EnumGuiType.ManageDialogs, npc);//MainMenuDisplay
+            //открывает категодию диалога имя категории выбирается и становится редактируемым но не видно содержимое категории - диалоги в ней
+            //срабатывает только после 0 open ManageDialogs
+            DialogCategory dc = dialog.category;
+            if (dc != null) {
+                NBTTagCompound nbt = dc.writeNBT(new NBTTagCompound());
+                nbt.removeTag("Dialogs");
+                Server.sendData(player, EnumPacketClient.GUI_DATA, new Object[]{nbt});
+            }
+            //todo show dialogs in category - "open category"
+            //response = "Gui Opened";
+            return true;
+        } else {
+            sender.addChatMessage(new ChatComponentText("You need to stand in the same chunk with any CustomNpc"));
+        }
+        return false;
     }
 
 
@@ -347,6 +253,7 @@ public class CommandCustomExtension extends CommandBase {
                 if (dop != null) {
                     Dialog d = BooksKeeper.getDialog(dop.dialogId);
                     final int qId = d == null ? -8 : d.quest; //-1 no quest; -2 no dialog -error
+                    //todo color
                     sb.append( String.format("% ,2d  % ,4d  % ,3d [%12s] %s\n",
                             slot, dop.dialogId, qId, dop.optionType, dop.title) );
                 } else {
@@ -491,24 +398,214 @@ public class CommandCustomExtension extends CommandBase {
         return response;
     }
 
+
+
+    /**
+     * Edit DialogOptions - variants for choise
+     * @param w
+     * @param sender
+     * @param dialog
+     * @return
+     */
+    public String cmdDialogOption(ArgsWrapper w, ICommandSender sender, Dialog dialog) {
+        String response = "?";
+        if (w.isHelpCmdOrNoArgs()) {
+            return "<add/remove/clean/edit/move>";
+        }
+        if (dialog.options == null) {
+            dialog.options = new HashMap();
+        }
+        //add add new options-dialogs to (Map)dialog.options of current dialog
+        // use \ for separate title names
+        if (w.isCmd("add", "a")) {
+            final String usageAdd = "<dialog/back/quit/command>";
+            if (w.isHelpCmdOrNoArgs()) {
+                response = usageAdd;
+            }
+            //new one ot more option-dialogs with ceating new sub dialog mapped to dialog-option
+            else if (w.isCmd("dialog", "d")) {
+                response = cmdDialogOptionsAddNew(dialog, w);
+            }
+            // cb d #id add-back #toDialogId
+            //add back from current dialog to specified dialogId
+            else if (w.isCmd("back", "b")) {
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = "(#toDialogId) [BackTitle]";
+                } else {
+                    //slot will be #99
+                    int toDialogId = w.argI(w.ai++, -1);//"back"-move to this dialog
+                    String backTitle = w.hasArg() ? w.join(w.ai) : BooksKeeper.instance().getBackTitle();
+                    boolean flag = NpcUtil.addBackDialogOptionTo(dialog, 99, toDialogId, backTitle);
+                    response = "Back Added: " + flag + " to DialogId:" + toDialogId +" from DialogId: " + dialog.id;
+                }
+            }
+            //switching to another dialog
+            else if (w.isCmd("jump", "j")) {
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = "(#slot) (#toDialogId) [title]";
+                } else {
+                    int slot = w.argI(w.ai++, -1);
+                    int toDialogId = w.argI(w.ai++, -1);//jump to this dialogId
+                    String jumpTitle = w.hasArg() ? w.join(w.ai) : "Next";
+                    boolean flag = NpcUtil.addBackDialogOptionTo(dialog, slot, toDialogId, jumpTitle);
+                    response = "jump Added: "+flag+" from DialogId: " + dialog.id + " Slot:" + slot + " to DialogId:" + toDialogId;
+                }
+            }
+            //---------
+            else if (w.isCmd("quit", "q")) {
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = "(#slot) [QuitTitle]";
+                } else {
+                    int slot = w.argI(w.ai++, -1);
+                    String quitTitle = w.hasArg() ? w.join(w.ai) : "Quit";
+                    boolean flag = NpcUtil.addQuitDialogOption(dialog, slot, quitTitle);
+                    response = "Quit Added: " + flag + " to DialogId: " + dialog.id + " to DialogOptionSlot: " + slot;
+                }
+            }
+            //---------
+            //add option-dialog with specified command
+            else if (w.isCmd("command", "c")) {
+                final String UsageAC = "(#slot) (title) (command)";
+                if (w.isHelpCmdOrNoArgs()) {
+                    response = UsageAC;
+                } else {
+                    int slot = w.argI(w.ai++, -1);
+                    String title = w.arg(w.ai++);
+                    String command = w.join(w.ai);
+                    if (slot > -1 && !isNullOrEmpty(title) && !isNullOrEmpty(command)) {
+                        boolean flag = addCommandDialogOption(sender, dialog, slot, title, command);
+                        response = "Command Added: " + flag + " to DialogId: " + dialog.id + " to DialogOptionSlot: " + slot;
+                    } else {
+                        response = UsageAC;
+                    }
+                }
+            } else {
+                response = usageAdd;
+            }
+        }//add
+        //---------
+        //remove dialog option from current dialog.options and delete the dialog-option from disk
+        else if (w.isCmd("remove", "rm")) {
+            //remove one specific dialog-option from dialog.options by his slotIndex
+            Integer slot = w.argI(w.ai++, -1);
+            DialogOption roDialog = dialog.options.get(slot);
+            if (roDialog != null) {
+                Dialog rDialog = DialogController.instance.dialogs.get(roDialog.dialogId);
+                if (rDialog != null) {
+                    //from maps and disk
+                    DialogController.instance.removeDialog(rDialog);
+                }
+                //case then no dialog but has dialog-option slot
+                Object removed = dialog.options.remove(slot);
+                response = "Slot - Cleaned.  Dialog: " + (removed == null ? "The slot was Empty" : "Removed");
+                //save changes
+                NpcUtil.saveDialog(dialog);
+            }
+            else {
+                response = "Not Found dialog-option for slot:" + w.arg(w.ai - 1);
+            }
+        }
+
+        //remove all DialogOption from current dialog, and dialogs by DialogOption.dialogId form mem and disk
+        else if (w.isCmd("clean", "clear")) {
+            if (w.isHelpCmd()) {
+                return "remove all DialogOption from current dialog, and dialogs by DialogOption.dialogId form mem and disk";
+            }
+            int counter = 0;
+            final int dosz = safe(dialog.options).size();
+            if (dosz > 0) {
+                Iterator<Map.Entry<Integer, DialogOption>> iter = dialog.options.entrySet().iterator();
+                while (iter.hasNext()) {
+                    Map.Entry<Integer, DialogOption> e = iter.next();
+                    //Integer slot = e.getKey();
+                    iter.remove(); //dialog.options.remove(slot);//from variants
+
+                    DialogOption dop = e.getValue();
+                    if (dop != null) {
+                        //from mem and disk
+                        Dialog rDialog = DialogController.instance.dialogs.get(dop.dialogId);
+                        if (rDialog != null) {
+                            DialogController.instance.removeDialog(rDialog);
+                            counter++;
+                        }
+                    }
+                }
+                //save changes
+                NpcUtil.saveDialog(dialog);
+                                                     // slots    actual removed dialogs
+                response = "Cleaned all dialog options["+dosz+"]: " + counter + " in DialogId:" + dialog.id;
+
+                //if several dialog-option were created recently - check for lastDialogId trim space
+                if (counter > 0 && this.packCreated) {
+                    this.packCreated = false;
+                    //trim last deleted dialogIds "save dialogId-name-space"
+                    NpcUtil.getLastDialogID(true);
+                }
+            }
+            else {
+                response = "Empty options in dialodId: " + dialog.id;
+            }
+        }
+        //for the ability to edit dialog-options in slots above 5
+        else if (w.isCmd("edit", "e")) {
+            response = cmdDialogOptionEdit(dialog, w);
+        }
+        //move DialogOptin to specific slot (swap places)
+        else if (w.isCmd("move", "m")) {
+            response = cmdDialogOptionMove(dialog, w);
+        }
+        else {
+            response = "UKNOWN";
+        }
+        return response;
+    }
+
+    public boolean addCommandDialogOption(ICommandSender sender, Dialog dialog, int slot, String title, String command) {
+        //checking access
+        if (NpcUtil.canPlayerEditNpc(sender, false, true) && dialog != null) {
+            //add only on exists dialogs Id
+            if (DialogController.instance.dialogs != null && title != null && !title.isEmpty() && slot >-1) {
+                if (dialog.options.containsKey(slot)) {
+                    // do not replace exists dialog-option slot
+                    sender.addChatMessage(new ChatComponentText("Slot: " + slot + "Already Exists"));
+                } else {
+                    DialogOption backOption = new DialogOption();
+                    backOption.optionType = EnumOptionType.CommandBlock;
+                    backOption.dialogId = -1;
+                    backOption.title = title;
+                    dialog.options.put(slot, backOption);
+                    //save
+                    NpcUtil.saveDialog(dialog);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * Edit Dialog option
      * @param dialog
      * @param w
      * @return
+     * cx dialog #d options edit #slot (action) [params]
      */
     public String cmdDialogOptionEdit(Dialog dialog, ArgsWrapper w) {
+        final String USAGE = "(slot) <dialog-id/title/command/color/type>";
         if (w.isHelpCmdOrNoArgs()) {
-            return "(slot) <dialog-id/title/type>";
+            return USAGE;
         }
-        String response = "?";
+        String response;
         Integer slot = w.argI(w.ai++, -1);
         boolean mod = false;
         DialogOption dop = dialog.options.get(slot);
         if (dop == null) {
             response = "Not Found dialog-option for slot:" + w.arg(w.ai - 1);
         } else {
-            if (w.isCmd("dialog-id", "di")) {
+            if (w.isHelpCmd()) {
+                return USAGE;
+            }
+            else if (w.isCmd("dialog-id", "di")) {
                 int last = dop.dialogId;
                 dop.dialogId = w.argI(w.ai++, -1);
                 mod = last != dop.dialogId;
@@ -523,7 +620,13 @@ public class CommandCustomExtension extends CommandBase {
                 dop.command = w.join(w.ai);
                 mod = !dop.command.equals(last);
             }
-            else if (w.isCmd("type")) {
+            else if (w.isCmd("color")) {
+                int last = dop.optionColor;
+                dop.optionColor = w.argI(w.ai++);
+                //todo from hex
+                mod = last != dop.optionColor;
+            }
+            else if (w.isCmd("type", "t")) {
                 if (w.isHelpCmdOrNoArgs()) {
                     //QuitOption, DialogOption, Disabled, RoleOption, CommandBlock
                     StringBuilder sb = new StringBuilder();
@@ -538,25 +641,23 @@ public class CommandCustomExtension extends CommandBase {
                     mod = true;
                 }
             }
-            else if (w.isCmd("color")) {
-                int last = dop.optionColor;
-                dop.optionColor = w.argI(w.ai++);
-                mod = last != dop.optionColor;
-            }
 
             StringBuilder sb = new StringBuilder();
             if (mod) {
-              sb.append("[Modified] ");
+                sb.append("[Modified] ");
+                //save changes
+                NpcUtil.saveDialog(dialog);
             }
-            sb.append("DialogId:").append(dop.dialogId)
-              .append(' ').append(dop.optionType)
+            sb.append(" Slot:").append(slot)
+              //indicates the transition of this option to another dialog
+              .append(" DialogId:").append(dop.dialogId)
+              .append(" [").append(dop.optionType).append(']')
               .append(" Color: ").append(dop.optionColor)
-              .append("\nTitle:\"").append(dop.title).append("\" ")
-              .append("\nCommand: '") .append(dop.command).append('\'');
+              .append(" Title:\"").append(dop.title).append("\" ");
+            if (!isNullOrEmpty(dop.command)) {
+                sb.append("\nCommand: '") .append(dop.command).append('\'');
+            }
             response = sb.toString();
-
-            //save changes
-            NpcUtil.saveDialog(dialog);
         }
         return response;
     }
@@ -568,10 +669,10 @@ public class CommandCustomExtension extends CommandBase {
      * @param w
      * @return
      */
-    public String cmdDialogOptionsAddNew (Dialog dialog, ArgsWrapper w) {
+    public String cmdDialogOptionsAddNew(Dialog dialog, ArgsWrapper w) {
         String response = "?";
         if (w==null || w.isHelpCmdOrNoArgs()) {
-            response = "<add-new> dialog option title name 1 \\ name 2 \\ name N";
+            response = "<add-new> (dialog option title name 1) \\ (name 2) \\ (name N)";
         }
         else {
             int sz = dialog.options.size();
@@ -614,7 +715,7 @@ public class CommandCustomExtension extends CommandBase {
                     for (int i = 0; i < titles.size(); i++) {
                         String title = titles.get(i);
                         if (title != null && !title.isEmpty()) {
-                            String text = String.valueOf(slot); //blank  dialog.text
+                            String text = String.valueOf( slot ); //blank  dialog.text
                             Dialog odialog = NpcUtil.newDialog(dialog.category.id, "." + slot + " " + title,  text);
                             if (odialog != null) {
                                 DialogOption dop = new DialogOption();
@@ -630,7 +731,9 @@ public class CommandCustomExtension extends CommandBase {
                             }
                         }
                     }
-                    NpcUtil.saveDialog(dialog);
+                    if (mod) {
+                        NpcUtil.saveDialog(dialog);
+                    }
                 }
 
                 response = "Done; sz:" + sz + " i: "+slot +" Added new options:"+ (slot-sz);

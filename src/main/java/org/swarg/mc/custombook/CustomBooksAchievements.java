@@ -14,7 +14,7 @@ public class CustomBooksAchievements {
     public static Achievement aQuitFromSpawn;
 
     //used for fix client side crash
-    public static final Achievement BLOCKED = new Achievement("achievement.blocked", "?", 0, 0, Items.bone, null);
+    //public static final Achievement BLOCKED = new Achievement("achievement.blocked", "?", 0, 0, Items.bone, null);
 
     public static void register () {
         aOpenGuideBook = new Achievement("achievement.OpenGuideBook", "OpenGuideBook", 0, -1, ItemCustomBook.customBook, null).registerStat();

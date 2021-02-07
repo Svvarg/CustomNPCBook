@@ -8,7 +8,6 @@ import net.minecraft.world.World;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.MathHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Item;
 import net.minecraft.util.IIcon;
@@ -39,6 +38,11 @@ public class ItemCustomBook extends Item {
      */
     @Override
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
+        ///*DEBUG*/System.out.println("[###] onItemRightClick Side:" + (world.isRemote?"Client":"Server"));
+        //if (world.isRemote) {
+        //    boolean removeWrong = stack.getItemDamage( )== 1;
+        //    org.swarg.mc.fixes.Fixes.cmdFixes(CustomNPCBook.logger, "onItemRightClick", player, removeWrong);
+        //}
         BooksKeeper.instance().openBookDialog(player, stack);
         return stack;
     }
