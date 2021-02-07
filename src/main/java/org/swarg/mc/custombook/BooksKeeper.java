@@ -6,13 +6,13 @@ import java.util.HashMap;
 import net.minecraft.item.ItemStack;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.ChatComponentTranslation;
-import noppes.npcs.NoppesUtilServer;
 
 import noppes.npcs.Server;
+import noppes.npcs.NoppesUtilServer;
 import noppes.npcs.entity.EntityDialogNpc;
 import noppes.npcs.constants.EnumPacketClient;
 import noppes.npcs.controllers.PlayerDataController;
@@ -21,6 +21,7 @@ import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.Dialog;
 
 import org.swarg.mc.custombook.util.NpcUtil;
+import static org.swarg.mc.custombook.util.NpcUtil.isServerSide;
 
 
 /**
@@ -43,7 +44,7 @@ public class BooksKeeper {
                     // meta    dialogId
     private final Map<Integer, Integer> metaToDialogId = new HashMap<Integer, Integer>();
     private String backTitle = "Back"; //for autogenerate for command custombook dialog #id option add-new option name one \ option two \ the best option
-    public boolean debug;
+    public boolean debug = false;
 
 
     public static BooksKeeper instance() {
@@ -60,12 +61,13 @@ public class BooksKeeper {
 
 
     /**
-     * Open LifeBook GUI (CustomNPC Dialog for book meta of ItemStack)
+     * Send Package to Player for Open Custom Book
+     * Open Dialog GUI (CustomNPC Dialog for book by specific meta of ItemStack)
      * @param player
      * @param book
      */
-    public void openBookDialog(EntityPlayer player, ItemStack book ) {
-        if (player != null && player.worldObj != null && !player.worldObj.isRemote && book != null) {
+    public void openBookDialog(EntityPlayer player, ItemStack book) {
+        if (book != null && isServerSide(player)) {
             final int meta = book.getItemDamage();
 
             bookKeeper.worldObj = player.worldObj;//++ null safe; not impact to work
@@ -178,7 +180,7 @@ public class BooksKeeper {
         Integer min = null;
         if (dialogs != null && !dialogs.isEmpty()) {
             for (Integer id : dialogs.keySet()) {
-                if (min == null || id != null && id < min) {
+                if (min == null || id != null && id < min && id > 0) {
                     min = id;
                 }
             }

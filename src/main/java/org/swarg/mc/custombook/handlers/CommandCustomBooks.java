@@ -15,6 +15,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 
 import noppes.npcs.NoppesUtilServer;
+import noppes.npcs.controllers.Dialog;
 
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.fixes.Fixes;
@@ -83,6 +84,12 @@ public class CommandCustomBooks extends CommandBase {
         
         else if (w.isCmd("status", "st")) {
             response = BooksKeeper.instance().status();
+        }
+
+        else if (w.isCmd("mapping", "m")) {
+            final int meta = w.argI(w.ai++);
+            Dialog dialog = BooksKeeper.instance().getStartDialogForBook(meta);
+            response = dialog == null ? "[Not Found]" : "#"+dialog.id+" "+dialog.title;
         }
 
         else if (w.isCmd("debug")) {

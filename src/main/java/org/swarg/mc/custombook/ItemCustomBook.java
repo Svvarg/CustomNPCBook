@@ -11,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Item;
 import net.minecraft.util.IIcon;
+import static org.swarg.mc.custombook.util.NpcUtil.isServerSide;
 
 
 /**
@@ -29,7 +30,9 @@ public class ItemCustomBook extends Item {
      */
     @Override
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int i7, float f8, float f9, float f10) {
-        BooksKeeper.instance().openBookDialog(player, stack);
+        if (isServerSide(player)) {
+            BooksKeeper.instance().openBookDialog(player, stack);
+        }
         return true;
     }
     /**
@@ -38,12 +41,10 @@ public class ItemCustomBook extends Item {
      */
     @Override
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-        ///*DEBUG*/System.out.println("[###] onItemRightClick Side:" + (world.isRemote?"Client":"Server"));
-        //if (world.isRemote) {
-        //    boolean removeWrong = stack.getItemDamage( )== 1;
-        //    org.swarg.mc.fixes.Fixes.cmdFixes(CustomNPCBook.logger, "onItemRightClick", player, removeWrong);
-        //}
-        BooksKeeper.instance().openBookDialog(player, stack);
+        //onItemRightClick
+        if (isServerSide(player)) {
+            BooksKeeper.instance().openBookDialog(player, stack);
+        }
         return stack;
     }
 

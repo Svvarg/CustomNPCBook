@@ -37,6 +37,11 @@ import static net.minecraft.util.StringUtils.isNullOrEmpty;
  * @author Swarg
  */
 public class NpcUtil {
+
+    public static boolean isServerSide(Entity e) {
+        return e != null && e.worldObj != null && !e.worldObj.isRemote;
+    }
+
     /**
      * Message to all players
      * @param name
