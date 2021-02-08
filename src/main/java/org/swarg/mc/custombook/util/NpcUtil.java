@@ -31,6 +31,7 @@ import noppes.npcs.controllers.Dialog;
 
 import org.swarg.mc.custombook.BooksKeeper;
 import static net.minecraft.util.StringUtils.isNullOrEmpty;
+import noppes.npcs.controllers.DialogCategory;
 
 /**
  * 04-02-21
@@ -172,7 +173,47 @@ public class NpcUtil {
         return false;
     }
 
-    public static boolean addBackDialogOptionTo(Dialog dialog, int slot, int toDialogId, String title) {
+    public static StringBuilder appendDialog(StringBuilder sb, Dialog dialog) {
+        if (sb != null && dialog != null) {
+            sb.append("#").append(dialog.id).append(" '").append(dialog.title).append("' options: ").append(safe(dialog.options).size());
+        }
+        return sb;
+    }
+
+    public static int getCategoryId(Dialog dialog) {
+        return dialog == null || dialog.category == null ? -1 : dialog.category.id;
+    }
+
+    public static StringBuilder appendCategory(StringBuilder sb, DialogCategory cat) {
+        if (sb != null && cat != null) {
+            sb.append("#").append(cat.id).append(" '").append(cat.title).append("' size: ").append(safe(cat.dialogs).size());
+        }
+        return sb;
+    }
+
+    public static String getHexColor(int color) {
+        StringBuilder sb = new StringBuilder(6);
+        sb.append(Integer.toHexString(color));
+        int rem = 6 - sb.length();
+        while (rem > 0) {
+            sb.insert(0, '0');
+            rem--;
+        }
+        return sb.toString();
+    }
+
+    public static int getColorFromHexStr(String hex, int def) {
+        if (!isNullOrEmpty(hex)) {
+            try {
+                return Integer.parseInt(hex, 16);
+            }
+            catch (Exception e) {
+            }
+        }
+        return def;
+    }
+
+    public static boolean addDialogOptionSwitchTo(Dialog dialog, int slot, int toDialogId, String title) {
         if (dialog != null && toDialogId > -1 && slot > -1) {
             //add only on exists dialogs Id
             if (DialogController.instance.dialogs != null && DialogController.instance.dialogs.containsKey(toDialogId)) {

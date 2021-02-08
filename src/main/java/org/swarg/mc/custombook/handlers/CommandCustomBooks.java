@@ -36,7 +36,8 @@ public class CommandCustomBooks extends CommandBase {
         this.aliases = new ArrayList<String>();
         this.aliases.add("cb");
         this.tab = new ArrayList();
-        tab.add("version");tab.add("status");tab.add("reload");tab.add("display");tab.add("quest-tag");tab.add("jump-to-dim");tab.add("convert");
+        tab.add("status");tab.add("reload");tab.add("display");tab.add("quest-tag");tab.add("jump-to-dim");tab.add("convert");tab.add("version");tab.add("debug");
+        BooksKeeper.instance();//load Class
     }
     
     @Override
@@ -60,7 +61,7 @@ public class CommandCustomBooks extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<vesrion/status/reload/display/quest-tag/item/jump-to-dim/convert/fix>";
+        return "<vesrion/status/reload/display/quest-tag/item/jump-to-dim/convert/debug/mapping/check-gui-stat>";
     }
 
 
@@ -86,18 +87,20 @@ public class CommandCustomBooks extends CommandBase {
             response = BooksKeeper.instance().status();
         }
 
-        else if (w.isCmd("mapping", "m")) {
-            final int meta = w.argI(w.ai++);
-            Dialog dialog = BooksKeeper.instance().getStartDialogForBook(meta);
-            response = dialog == null ? "[Not Found]" : "#"+dialog.id+" "+dialog.title;
-        }
-
         else if (w.isCmd("debug")) {
-            BooksKeeper.instance().debug = w.argB(w.ai++);
+            BooksKeeper.instance().debug = w.noArgs() ? !BooksKeeper.instance().debug : w.argB(w.ai++);
             response = "Debug: " + BooksKeeper.instance().debug;
         }
 
-        else if (w.isCmd("check-gui-stat","cgs")) {//fix
+        else if (w.isCmd("mapping", "m")) {
+            final int meta = w.argI(w.ai++, 0);
+            Dialog dialog = BooksKeeper.instance().getStartDialogForBook(meta);
+            response = dialog == null
+                    ? "[Not Found]"
+                    : "meta:" + meta + " > #"+dialog.id+" "+dialog.title;
+        }
+        //
+        else if (w.isCmd("check-gui-stat", "cgs")) {//Experimental GuiStatFix
             boolean removeWrong = w.argB(w.ai++);
             StringBuilder log = new StringBuilder();
             Fixes.fixItemBasedStats(log, "[SERVER]", net.minecraft.stats.StatList.objectMineStats, removeWrong);//CustomNPCBook.logger

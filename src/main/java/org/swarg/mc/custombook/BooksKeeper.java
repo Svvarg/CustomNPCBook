@@ -19,6 +19,8 @@ import noppes.npcs.controllers.PlayerDataController;
 import noppes.npcs.controllers.DialogController;
 import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.Dialog;
+import org.apache.logging.log4j.Level;
+import static org.swarg.mc.custombook.CustomNPCBook.LOG;
 
 import org.swarg.mc.custombook.util.NpcUtil;
 import static org.swarg.mc.custombook.util.NpcUtil.isServerSide;
@@ -75,12 +77,15 @@ public class BooksKeeper {
             Dialog dialog = getStartDialogForBook(meta);
             //OpenDialog in Player Client
             if (dialog != null && PlayerDataController.instance != null && DialogController.instance != null) {
+                if (dialog.category == null) {
+                    logD("No Category in DialogId: {} [CANCELED]", dialog.id);
+                    return;
+                }
                 dialog.hideNPC = true;
                 
-                debugOpMsg(player, "SendData Meta: %s DIALOG id: %s Title: '%s'", meta, dialog.id, dialog.title);
+                logD("Meta: {} DialogId: {} CategoryId: {} [SendData:DIALOG_DUMMY]", meta, dialog.id, dialog.category.id);
 
                 ///*Full:*/ NoppesUtilServer.openDialog(player, keeper, dialog);
-
                 //Eco:
                 Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG_DUMMY, new Object[]{ bookKeeper.getCommandSenderName(), dialog.writeToNBT(new NBTTagCompound())});
                 //Server.sendData((EntityPlayerMP)player, EnumPacketClient.DIALOG, new Object[]{ Integer.valueOf(keeper.getEntityId()), dialog.writeToNBT(new NBTTagCompound()) });
@@ -95,14 +100,14 @@ public class BooksKeeper {
             else {
                 //itembook meta corresponds DialogCategoryIndex in exists dialogs BOOK_<Slot>
                 player.addChatMessage(new ChatComponentTranslation("commands.CustomNPCBooks.locked"));//Sealed
-                debugOpMsg(player, "No DialogId for meta: " + meta);
+                logD("No DialogId for meta: {}", meta);//debugOpMsg(player, "No DialogId for meta: " + meta);
             }
         }
     }
 
-    public Dialog getDialogForMeta(Integer meta) {
-        //Integer key = Integer.valueOf(meta);
+    public Dialog getMappedDialogForMeta(Integer meta) {
         Integer dialogId = metaToDialogId.get(meta);
+        /*DEBUG*/if (debug) { LOG.log(Level.INFO, "[getDialogForMeta] Meta: {} > DialogId: {}", meta, dialogId);}
         return (dialogId != null ) ? getDialog(dialogId) : null;
     }
 
@@ -119,50 +124,50 @@ public class BooksKeeper {
      */
     public Dialog getStartDialogForBook(int bookMeta) {
         final Integer meta = Integer.valueOf(bookMeta);
-        Dialog dialog = getDialogForMeta(meta);//metaToDialog.get(key);
+        Dialog dialog = getMappedDialogForMeta(meta);//metaToDialog.get(key);
 
         /*if the dialog was already searched for, it was not found - the
           value will be null. In this case, do not search again */
         if (dialog == null && !metaToDialogId.containsKey(meta) &&
             DialogController.instance != null && !DialogController.instance.categories.isEmpty())
         {
-            HashMap<Integer, DialogCategory> dca = DialogController.instance.categories;
+            HashMap<Integer, DialogCategory> categories = DialogController.instance.categories;
 
-            for (DialogCategory dc : dca.values()) {
-                if (dc != null) {
+            for (DialogCategory dcat : categories.values()) {
+                if (dcat != null) {
 
                     //Category Title "BOOK_N" where N corresponds meta in BookItem //(slot of dialog in npc)
-                    if (dc.title != null && dc.title.startsWith(BOOK_DIALOG_CATEGORY_NAME)) {
-                        final int bookN = getSlotFromCategoryTitle(dc.title);
+                    if (dcat.title != null && dcat.title.startsWith(BOOK_DIALOG_CATEGORY_NAME)) {
+                        final int bookN = getMetaFromCategoryTitle(dcat.title); // BOOK_0 -> 0
                         if (bookN == meta) {
                             //Autosearch first dialog in category "BOOK_META" "main page of book"
-                            Integer dId = getLowestDialogId(dc.dialogs);
-                            if (dId != null ) {
-                                dialog = dc.dialogs.get(dId);
+                            Integer lowestDialogId = getLowestDialogId(dcat.dialogs);
+                            if (lowestDialogId != null ) {
+                                dialog = dcat.dialogs.get(lowestDialogId);
 
                                 if (dialog != null) {
-                                    /*DEBUG*/if (debug) { System.out.println("Found Dialog for meta: " + meta + " dialogId:" + dialog.id);}
+                                    logD("For Meta:{} in CategoryId:{} Found DialogId:{}", meta, dcat.id, dialog.id);
                                     //DialogOption dOption = new DialogOption();dOption.dialogId = dialog.id;dOption.title = dialog.title;bookKeeper.dialogs.put( mi, dOption);
                                     this.metaToDialogId.put(meta, dialog.id);
                                 } else {
-                                    /*DEBUG*/if (debug) {System.out.println("Dialog for meta "+meta+" is null!");}
-                                    this.metaToDialogId.put(meta, null);
+                                    //lowestDialogId = -1 "Not Found"
+                                    logD("For Meta:{} in CategoryId:{} LowestDialogId:{} return Null Dialog", meta, dcat.id, lowestDialogId);//NotFound
+                                    this.metaToDialogId.put(meta, null);//in order not to search again after the first search
                                 }
 
                                 return dialog;
                             }
                             else {
-                                final int sz = dc.dialogs == null ? 0 : dc.dialogs.size();
-                                /*DEBUG*/if (debug) {System.out.println("Not found lowestDialogId in variants counts: " + sz + " for meta: "+meta);}
+                                final int sz = dcat.dialogs == null ? -1 : dcat.dialogs.size();
+                                logD("Not Found lowestDialogId for Meta: {} in CategoryId: {} DialogsInCategory: {}", meta, dcat.id, sz);
                             }
-
                         }
                     }
                 }
             }
-
-            //mark alredy searched but not exist. Use command 'custombook reload' if added new dialogs and categories
-            //for search only once
+            /*if no dialog is found for the specified meta put a stub in the map
+              In order not to search for the dialog again for this meta
+              For remove stub and remapping use command 'custombooks reload'  */
             this.metaToDialogId.put(meta, null);
         }
 
@@ -180,7 +185,7 @@ public class BooksKeeper {
         Integer min = null;
         if (dialogs != null && !dialogs.isEmpty()) {
             for (Integer id : dialogs.keySet()) {
-                if (min == null || id != null && id < min && id > 0) {
+                if (min == null || id != null && id < min) {
                     min = id;
                 }
             }
@@ -194,7 +199,7 @@ public class BooksKeeper {
      * @param title
      * @return
      */
-    public int getSlotFromCategoryTitle(String title) {
+    public int getMetaFromCategoryTitle(String title) {
         if (title != null) {
 
             final int sz = title.length();
@@ -210,6 +215,9 @@ public class BooksKeeper {
                     return Integer.parseInt(num);
                 }
                 catch (Exception e) {
+                    if (debug) {
+                        LOG.log(Level.WARN, "Illegal Meta in Category Title: '{}'", title);
+                    }
                 }
             }
         }
@@ -268,6 +276,7 @@ public class BooksKeeper {
         return sb.toString();
     }
 
+
     //used in autoadd back from dialogoption
     public String getBackTitle() {
         return backTitle;
@@ -289,6 +298,19 @@ public class BooksKeeper {
                 player.addChatMessage(new ChatComponentText( EnumChatFormatting.GOLD + "[DEBUG] "+ line));
             } catch (Exception e) {
             }
+        }
+    }
+
+    //waitfor MLog
+    //---------------------------- DEBUG LOG ---------------------------------\\
+    public void logD(String message, int i) {
+        if (debug) {
+            LOG.log(Level.INFO, message, i);
+        }
+    }
+    public void logD(String message, int a, int b, int c) {
+        if (debug) {
+            LOG.log(Level.INFO, message, a, b, c);
         }
     }
 

@@ -51,7 +51,6 @@ public class Fixes {
         //guiCounter++;
         if (event.gui != null) {
             if (event.gui.getClass() == net.minecraft.client.gui.achievement.GuiStats.class) {
-                //CustomNPCBook.logger.log("GUI-FIX:" + event.gui.getClass().getName());
                 //clientPrintChatMessage(NpcUtil.exceptionTraceAsString(new Throwable()));
                 Fixes.fixGuiStatListItemBased(net.minecraft.stats.StatList.objectMineStats);
             }
