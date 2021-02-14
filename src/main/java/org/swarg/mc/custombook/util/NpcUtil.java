@@ -26,12 +26,14 @@ import noppes.npcs.CustomItems;
 import noppes.npcs.CustomNpcsPermissions;
 import noppes.npcs.constants.EnumOptionType;
 import noppes.npcs.controllers.DialogController;
+import noppes.npcs.controllers.DialogCategory;
+import noppes.npcs.controllers.QuestCategory;
 import noppes.npcs.controllers.DialogOption;
 import noppes.npcs.controllers.Dialog;
+import noppes.npcs.controllers.Quest;
 
 import org.swarg.mc.custombook.BooksKeeper;
 import static net.minecraft.util.StringUtils.isNullOrEmpty;
-import noppes.npcs.controllers.DialogCategory;
 
 /**
  * 04-02-21
@@ -183,10 +185,21 @@ public class NpcUtil {
     public static int getCategoryId(Dialog dialog) {
         return dialog == null || dialog.category == null ? -1 : dialog.category.id;
     }
+    
+    public static int getCategoryId(Quest quest) {
+        return quest == null || quest.category == null ? -1 : quest.category.id;
+    }
 
     public static StringBuilder appendCategory(StringBuilder sb, DialogCategory cat) {
         if (sb != null && cat != null) {
             sb.append("#").append(cat.id).append(" '").append(cat.title).append("' size: ").append(safe(cat.dialogs).size());
+        }
+        return sb;
+    }
+    
+    public static StringBuilder appendCategory(StringBuilder sb, QuestCategory cat) {
+        if (sb != null && cat != null) {
+            sb.append("#").append(cat.id).append(" '").append(cat.title).append("' size: ").append(safe(cat.quests).size());
         }
         return sb;
     }

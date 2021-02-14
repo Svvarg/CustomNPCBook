@@ -29,10 +29,9 @@ public class ItemCustomBook extends Item {
      *  Item used on block
      */
     @Override
+    @SideOnly(Side.SERVER)
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int i7, float f8, float f9, float f10) {
-        if (isServerSide(player)) {
-            BooksKeeper.instance().openBookDialog(player, stack);
-        }
+        BooksKeeper.instance().openBookDialog(player, stack);//ServerSideOnly
         return true;
     }
     /**
@@ -40,11 +39,9 @@ public class ItemCustomBook extends Item {
      * @return
      */
     @Override
+    @SideOnly(Side.SERVER)
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-        //onItemRightClick
-        if (isServerSide(player)) {
-            BooksKeeper.instance().openBookDialog(player, stack);
-        }
+        BooksKeeper.instance().openBookDialog(player, stack);
         return stack;
     }
 

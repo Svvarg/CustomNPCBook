@@ -18,7 +18,6 @@ import noppes.npcs.NoppesUtilServer;
 import noppes.npcs.controllers.Dialog;
 
 import org.swarg.cmds.ArgsWrapper;
-import org.swarg.mc.fixes.Fixes;
 import org.swarg.mc.custombook.BooksKeeper;
 import org.swarg.mc.custombook.CustomNPCBook;
 import org.swarg.mc.custombook.util.NpcUtil;
@@ -100,12 +99,6 @@ public class CommandCustomBooks extends CommandBase {
                     : "meta:" + meta + " > #"+dialog.id+" "+dialog.title;
         }
         //
-        else if (w.isCmd("check-gui-stat", "cgs")) {//Experimental GuiStatFix
-            boolean removeWrong = w.argB(w.ai++);
-            StringBuilder log = new StringBuilder();
-            Fixes.fixItemBasedStats(log, "[SERVER]", net.minecraft.stats.StatList.objectMineStats, removeWrong);//CustomNPCBook.logger
-            response = log.toString();
-        }
         //experimental
         else if (w.isCmd("null")) {
             sender.addChatMessage(new ChatComponentTranslation(null));//new ChatComponentText(null));//make client crash
@@ -322,12 +315,8 @@ public class CommandCustomBooks extends CommandBase {
                     }
                 }
                 else if (w.isCmd("add", "a")) {
-                    if (!is.hasTagCompound()) {
-                        is.stackTagCompound = new NBTTagCompound();
-                    }
-                    int tag = w.argI(w.ai++, (int) (System.currentTimeMillis() / 1000L) );
-                    is.stackTagCompound.setInteger(QUESTTAG, tag);
-                    response = QUESTTAG + ":" + tag;
+                    int tag = w.argI(w.ai++, 0 );
+                    response = QUESTTAG + ":" + setQuestTag(is, tag);
                 }
                 else if (w.isCmd("remove", "r")) {
                     if (is.hasTagCompound() && is.stackTagCompound.hasKey(QUESTTAG) ) {
@@ -343,6 +332,21 @@ public class CommandCustomBooks extends CommandBase {
         }
         return response;
     }
+
+    public static int setQuestTag(ItemStack is, int tag) {
+        if (is != null) {
+            if (tag == 0) {
+                tag = (int) (System.currentTimeMillis() / 1000L);
+            }
+            if (!is.hasTagCompound()) {
+                is.stackTagCompound = new NBTTagCompound();
+            }
+            is.stackTagCompound.setInteger(QUESTTAG, tag);
+            return tag;
+        }
+        return -1;//error
+    }
+
 
     //Experimental  for translation Lang files
     //cb item

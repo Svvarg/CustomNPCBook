@@ -18,13 +18,17 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatList;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Item;
 
 import noppes.npcs.Server;
 import noppes.npcs.NoppesUtilServer;
 import noppes.npcs.constants.EnumGuiType;
+import noppes.npcs.constants.EnumQuestType;
 import noppes.npcs.constants.EnumOptionType;
 import noppes.npcs.constants.EnumPacketClient;
 import noppes.npcs.constants.EnumQuestRepeat;
+import noppes.npcs.constants.EnumQuestCompletion;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.DialogController;
@@ -38,12 +42,15 @@ import noppes.npcs.controllers.QuestCategory;
 import noppes.npcs.controllers.QuestController;
 import noppes.npcs.controllers.QuestData;
 import noppes.npcs.controllers.Quest;
+import noppes.npcs.quests.QuestItem;
 
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.custombook.BooksKeeper;
 import org.swarg.mc.custombook.util.NpcUtil;
 import static org.swarg.mc.custombook.util.NpcUtil.safe;
 import static net.minecraft.util.StringUtils.isNullOrEmpty;
+import static org.swarg.mc.custombook.handlers.CommandCustomBooks.QUESTTAG;
+import static org.swarg.mc.custombook.handlers.CommandCustomBooks.setQuestTag;
 
 
 /**
@@ -90,7 +97,7 @@ public class CommandCustomExtension extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<category/dialog/player-data/player-stat>";
+        return "<category/dialog/quest/script/player-data/player-stat>";
     }
 
 
@@ -107,13 +114,19 @@ public class CommandCustomExtension extends CommandBase {
         //commands only for op-player
         else if (NpcUtil.canPlayerEditNpc(sender, false, true) || sender instanceof MinecraftServer) {
 
-            if (w.isCmd("category", "c")) {
+            if (w.isCmd("category", "c")) {//dialogCategory
                 response = cmdCategory(w, sender);
             }
             else if (w.isCmd("dialog", "d")) {
                 response = cmdDialog(w, sender);
             }
-            else if (w.isCmd("player-data", "pd")) {
+            else if (w.isCmd("quest", "q")) {
+                response = cmdQuest(w, sender);
+            }
+            else if (w.isCmd("script", "s")) {
+                response = CommandCustomScript.instance().cmdScript(w, sender);
+            }
+            else if (w.isCmd("player-data", "pd")) { //custom npc data (dialog & quests)
                 response = cmdPlayerData(w, sender);
             }
             else if (w.isCmd("player-stat", "ps")) {//achievement
@@ -143,7 +156,7 @@ public class CommandCustomExtension extends CommandBase {
     //========================================================================\\
     //                    CUSTOM-NPC DialogCategories
     //========================================================================\\
-
+    //DialogCategories
     private String cmdCategory(ArgsWrapper w, ICommandSender sender) {
         final String usage = "<info/list>";
         if (w.isHelpCmdOrNoArgs()) {
@@ -180,10 +193,11 @@ public class CommandCustomExtension extends CommandBase {
      * @return
      */
     private String cmdDialog(ArgsWrapper w, ICommandSender sender) {
-        String response = "?";
+        final String usage = "dialog (id) <status/edit/text/gui/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
         if (w.isHelpCmdOrNoArgs()) {
-            return "dialog (id) <status/edit/text/gui/options/script> | dialog <last-dialog-id [-trim] / set-back-title (title)>";
+            return usage;
         }
+        String response = "?";
 
         if (w.isCmd("last-dialog-id", "ldi")) {
             boolean trim = w.hasOpt("-trim");
@@ -239,7 +253,7 @@ public class CommandCustomExtension extends CommandBase {
             return cmdDialogScript(sender, w, dialog);
         }
         else
-            response = "UKNOWN: "+ w.arg(w.ai++);
+            response = usage;//"UKNOWN: "+ w.arg(w.ai++);
 
         return response;
     }
@@ -365,7 +379,7 @@ public class CommandCustomExtension extends CommandBase {
                 return usage;
             }
 
-            String lang = w.arg(w.ai++);    // "scala" javascript??
+            String lang = w.arg(w.ai++);    // "scala", "ecmascript"
             String filename = w.arg(w.ai++);
 
             //simple security barrier - do not allow change paths of default script directory
@@ -870,6 +884,231 @@ public class CommandCustomExtension extends CommandBase {
         }
     }
 
+    //========================================================================\\
+    //                       CUSTOM-NPC Quests
+    //========================================================================\\
+
+    private String cmdQuest(ArgsWrapper w, ICommandSender sender) {
+        final String usage = "quest (id) <status/edit/text> | quest <categories/new>";
+        if (w.isHelpCmdOrNoArgs()) {
+            return usage;
+        }
+        if (w.isCmd("categories", "c")) {
+            return cmdQuestCategories(w, sender);
+        }
+        else if (w.isCmd("new", "n")) {
+            return cmdQuestNew(sender, w);
+        }
+
+        int questId = w.argI(w.ai++, -1);
+        Quest quest = (Quest) QuestController.instance.quests.get( questId );
+        if (quest == null) {
+            return "Not Found Dialog for Id: " + questId;
+        }
+
+        //cx dialog new-options op0 op2 op3 .. op5
+        if (w.noArgs() || w.isCmd("status", "st")) {
+            return cmdQuestStatus(quest, w);
+        }
+        //cx dialog #id edit
+        else if (w.isCmd("edit", "e")) {
+            return cmdQuestEdit(quest, w);
+        }
+
+        else if (w.isCmd("text", "t")) {
+            final String usageText = "<log/complite>";
+            if (w.isHelpCmdOrNoArgs()) {
+                return usageText;
+            } else if (w.isCmd("log","l")) {
+                return quest.logText;
+            } else if (w.isCmd("complete","c")) {
+                return quest.completeText;
+            }
+            return quest.logText;
+        }
+        else return usage;
+    }
+
+
+    private String cmdQuestCategories(ArgsWrapper w, ICommandSender sender) {
+        final String usage = "<info/list/>";
+        String response = usage;
+        if (w.isHelpCmdOrNoArgs()) {
+            return usage;
+        }
+        else if (w.isCmd("info", "i")) {
+            int cid = w.argI(w.ai++);
+            boolean verbose = w.hasOpt("-verbose", "-v");
+            QuestCategory cat = QuestController.instance.categories.get(cid);
+            if (cat == null) {
+                response = "Not Found";
+            } else {
+                StringBuilder sb = new StringBuilder();
+                NpcUtil.appendCategory(sb, cat);
+                
+                if (verbose) {
+                    sb.append('\n');
+                    final int sz = safe(cat.quests).size();
+                    if (sz > 0) {
+                        for(Quest q : cat.quests.values()) {
+                            sb.append(" Q#").append(q.id).append(' ').append(q.type).append(' ').append(q.title).append('\n');
+                        }
+                    }
+                }
+                response = sb.toString();
+            }
+
+        }
+        else if (w.isCmd("list", "l")) {
+            HashMap<Integer, QuestCategory> cats = QuestController.instance.categories;
+            StringBuilder sb = new StringBuilder("--- DialogCategories ---\n");
+            for (QuestCategory cat: cats.values()) {
+                NpcUtil.appendCategory(sb, cat).append('\n');
+            }
+            return sb.toString();
+        }
+        return response;
+    }
+
+    private String cmdQuestStatus(Quest quest, ArgsWrapper w) {
+        StringBuilder sb = new StringBuilder();
+        if (quest.category != null) {
+            sb.append("CategoryId: ").append(quest.category.id).append(" '").append(quest.category.title).append("'").append(" size:").append(safe(quest.category.quests).size()).append('\n');
+        }
+        sb.append("QuestId: ").append(quest.id).append(" '").append(quest.title).append("'\n");
+        if (quest.nextQuestid > -1) {
+            sb.append("NextQuestId: ").append(quest.nextQuestid).append(" '").append(quest.nextQuestTitle).append("'\n");
+        }
+        sb.append("Type: ").append(quest.type).append(' ');
+        if (quest.questInterface != null) {
+            sb.append(quest.questInterface.getClass().getSimpleName()).append('\n');
+            if (quest.questInterface instanceof QuestItem) {
+                appendQuestItem(sb, (QuestItem) quest.questInterface);
+            }
+        } else {
+            sb.append('\n');
+        }
+
+        if (quest.completion == EnumQuestCompletion.Npc) {
+            sb.append("CompleterNpc: '").append(quest.completerNpc).append("'\n");
+        } else {
+            sb.append("Completion: Instant (WithoutNPC)\n");
+        }
+        if (!isNullOrEmpty(quest.command)) {
+            sb.append("Command: '").append(quest.command).append("'\n");
+        }
+        sb.append("Repeat: ").append( quest.repeat ).append('\n');
+        sb.append("RewardExp: ").append( quest.rewardExp ).append('\n');
+        if (quest.rewardItems != null && safe(quest.rewardItems.items).size() > 0) {
+            sb.append("Rewards: ");
+            for (ItemStack stack: quest.rewardItems.items.values()) {
+                if (stack != null && stack.getItem() != null) {
+                    sb.append(stack.toString()).append(';');
+                }
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    public static StringBuilder appendQuestItem(StringBuilder sb, QuestItem qi) {
+        if (sb == null) {
+            return sb;
+        }
+        if (qi.items != null && safe(qi.items.items).size() > 0) {
+            /*GuiNpcQuestTypeItem: quest.takeitems  gui.yes gui.no  leaveItems ? 1 : 0   QuestItem.handleComplete()*/
+            sb.append(" leaveItems: ")  .append(qi.leaveItems).append('\n'); // on false the quest takes items defined in quest slot   // the quest leaves then item with the player 
+            sb.append(" IgnoreDamage: ").append(qi.ignoreDamage).append('\n');
+            sb.append(" IgnoreNBT: ")   .append(qi.ignoreNBT).append('\n');
+            sb.append(" Items:\n");
+            for (ItemStack stack : qi.items.items.values()) {
+                //return this.stackSize + "x" + this.field_151002_e.getUnlocalizedName() + "@" + this.itemDamage;
+                if (stack.getItem() != null) {
+                    //.getgetUnlocalizedName()
+                    sb.append("  id ").append(Item.getIdFromItem(stack.getItem())).append('/').append(stack.getItemDamage()).append(" (").append(stack.getUnlocalizedName()).append(')');
+                    if (stack.stackSize > 1) {
+                        sb.append(' ').append('x').append(stack.stackSize);
+                    }
+
+                    if (stack.hasTagCompound()) {
+                        sb.append(' ');
+                        boolean hasQuestTag = stack.stackTagCompound.hasKey(QUESTTAG);
+                        final int rootNbtTags = stack.stackTagCompound.func_150296_c().size();
+                        if (rootNbtTags > 1) {
+                            sb.append("[NBT:").append(rootNbtTags).append(']');
+                        }
+                        if (hasQuestTag) {
+                            sb.append("[QuestTag]");//unique
+                        }
+                    }
+                    sb.append('\n');
+                }
+            }
+        } else {
+            sb.append(" Empty");
+        }
+        return sb;
+    }
+
+    private String cmdQuestNew(ICommandSender sender, ArgsWrapper w) {
+        final String usage = "<item>";
+        if (w.isHelpCmdOrNoArgs()) {
+            return usage;
+        } 
+        else if (w.isCmd("item", "i")) {
+            if (w.isHelpCmdOrNoArgs()) {
+                return "(QCategoryId) [-quest-tag] []";
+            }
+            EntityPlayer p = sender instanceof EntityPlayer ? (EntityPlayer)sender:null;
+            if (p == null) {
+                return "only for op players";
+            }
+            ItemStack stack = p.getHeldItem();
+            if (stack == null || stack.getItem()==null) {
+                return "take the item in you hand";
+            }
+            int catId = w.argI(w.ai++, -1);
+            if (catId == -1) {
+                return "(QuestCategoryId)";
+            }
+            boolean uQuestTag = w.hasOpt("-quest-tag", "-qt") && w.ai++ > 0;
+            //todo к указанному диалогу в который добавить вариант на данный квест (dialogOption) -> Сам диалог описания квеста с выбором брать или нет ->
+            //rewardExp
+            QuestCategory qc = null;
+            if ((qc = QuestController.instance.categories.get(catId)) == null) {
+                return "Not Exists QuestCategory: " + catId;
+            }
+            else if (qc != null) {
+                Quest q = new Quest();
+                q.title = w.join(w.ai);
+                q.rewardExp = 10;
+                if (isNullOrEmpty(q.title)) {
+                    q.title = stack.getUnlocalizedName();
+                }
+                q.type = EnumQuestType.Item;
+                q.logText = "Craft item " + stack.getUnlocalizedName() + " id: " + Item.getIdFromItem(stack.getItem()) + (stack.getHasSubtypes() ? stack.getItemDamage() : "");
+                q.completeText = "Done";
+                q.completion = EnumQuestCompletion.Instant;//without npc
+                QuestItem qi = new QuestItem();
+                ItemStack qs = stack.copy();
+                if (uQuestTag) {
+                    setQuestTag(qs, 0);
+                }
+                qi.items.items.put(0, qs);
+                qi.leaveItems = true; //leave quest item with player
+                q.questInterface = qi;
+
+                QuestController.instance.saveQuest(catId, q);
+                return "Added new ItemQuest #"+ q.id + " " + q.title +" to Category #" + qc.id +" " + qc.title + (uQuestTag?"[UniqueQuestTag]":"");
+            }
+        }
+        return usage;
+    }
+
+    
+    private String cmdQuestEdit(Quest quest, ArgsWrapper w) {
+        return "TODO";
+    }
 
     //========================================================================\\
     //                       CUSTOM-NPC PlayerData
@@ -908,9 +1147,9 @@ public class CommandCustomExtension extends CommandBase {
             data.factionData.saveNBTData(nbt);
             sb.append(nbt.toString());
             sb.append("\nQuest")
-              .append(" Finished: ")  .append(data.questData.finishedQuests.size())
-              .append(" Active: ")     .append(data.questData.finishedQuests.size()).append('\n');
-            sb.append("DialogsReaded: ").append(data.dialogData.dialogsRead.size()).append('\n');
+              .append(" Active: ")      .append(data.questData.activeQuests.size())
+              .append(" Finished: ")    .append(data.questData.finishedQuests.size()).append('\n')
+              .append("DialogsReaded: ").append(data.dialogData.dialogsRead.size()).append('\n');
             response = sb.toString();
         }
         else if (w.isHelpCmd()) {
@@ -937,12 +1176,13 @@ public class CommandCustomExtension extends CommandBase {
     public String cmdPlayerDataQuest(ArgsWrapper w, ICommandSender sender, PlayerData data) {
         String response = "?";
         if (w.isHelpCmdOrNoArgs()) {
-            return " active | finished [-repeated-only] | is-finished (questId) | catigories";
+            return "categories | active [catId] | finished [catId] [-repeated-only] | is-finished (questId) | remove qId";
         }
         PlayerQuestData qd = data.questData;
         String playerName = data.playername;
-        
-        if (w.isCmd("catigories", "c")) {
+
+        //show short infos about all quests categories,  more in 'cx quest categories' cmd
+        if (w.isCmd("categories", "c")) {
             Iterator<QuestCategory> iter = QuestController.instance.categories.values().iterator();
             StringBuilder sb = new StringBuilder();
             sb.append("#QCatId Title QuestCount\n");
@@ -964,8 +1204,12 @@ public class CommandCustomExtension extends CommandBase {
                     String title = q.title;
                     String time = null;
                     if (completeTime != null) {
-                        Instant instant = Instant.ofEpochMilli(completeTime);
-                        time = instant.atZone(ZoneId.systemDefault()).format(DT_FORMAT);
+                        if (q.repeat == EnumQuestRepeat.RLDAILY || q.repeat == EnumQuestRepeat.RLWEEKLY) {
+                            Instant instant = Instant.ofEpochMilli(completeTime);
+                            time = instant.atZone(ZoneId.systemDefault()).format(DT_FORMAT);
+                        } else {
+                            time = "TotalWordTime: " + completeTime; //ticks?
+                        }
                     }
                     response = "QuestId:" + qId +" "+ title + " "+ (completeTime == null ? "Not Finished" : ("Finished at " + time +" "+ completeTime));
                 } else {
@@ -974,41 +1218,56 @@ public class CommandCustomExtension extends CommandBase {
                         response += "But has CompleteTime:" + completeTime;
                     }
                 }
-
             }
         }
         //---------
         else if (w.isCmd("active", "a")) {
-            if (qd.activeQuests.size() > 0) {
-                Integer catId = w.argI(w.ai++, -1);//filter
+            Integer catId = w.argI(w.ai++, -1);//filter
+            if (safe(qd.activeQuests).size() > 0) {
+                StringBuilder sb = new StringBuilder("=Active Quests [").append(playerName).append("] =\n");
+                if (catId > -1) {
+                    QuestCategory qc = QuestController.instance.categories.get(catId);
+                    if (qc == null) {
+                        return "Not Exists QuestCategoryId: " + catId;
+                    } else {
+                        sb.append("Only for QuestCategory: ").append(qc.title).append(" [").append( catId ).append("]\n");
+                    }
+                }
 
                 Iterator<QuestData> iter = qd.activeQuests.values().iterator();
-                StringBuilder sb = new StringBuilder("=Active Quests [").append(playerName).append("]\n");
-
                 while(iter.hasNext()) {
                     QuestData q = iter.next();
-                    if (q != null&& q.quest != null) {
+                    if (q != null && q.quest != null) {
                         if (catId > -1 && catId != q.quest.category.id) { //filter by QuestCateg)
                             continue;
                         }
-                        sb.append( String.format("% ,3d [%8s] [%10s] %s\n",
-                          q.quest.id, q.quest.type, q.quest.repeat, q.quest.title));
+                        appendQuestLine(sb, q.quest).append('\n');//qId type Repeat Categ:QuestTitle
                     }
-                    response = sb.toString();
                 }
+                response = sb.toString();
             } else {
-                response = "No active quest in " + playerName;
+                response = "["+playerName+"] No Active Quests";
             }
         }
         //---------
+        //quest.repeat (EnumQuestRepeat.RLDAILY || EnumQuestRepeat.RLWEEKLY) -> systemcurrentMillis   Else   player.worldObj.getTotalWorldTime()
         else if (w.isCmd("finished", "f")) {
             boolean onlyRepeated = w.hasOpt("-repeated-only", "-r");
             Integer catId = w.argI(w.ai++, -1);//filter
+            //todo show world time then quest will be complited
+            if (safe(qd.finishedQuests).size() > 0) {
+                StringBuilder sb = new StringBuilder("= Finished Quests [").append(playerName).append("] =\n");
+                if (catId > -1) {
+                    QuestCategory qc = QuestController.instance.categories.get(catId);
+                    if (qc == null) {
+                        return "Not Exists QuestCategoryId: " + catId;
+                    } else {
+                        sb.append("Only for QuestCategory: ").append(qc.title).append(" [").append( catId ).append("]\n");
+                    }
+                }
 
-            if (qd.activeQuests.size() > 0) {
                 Iterator<Integer> iter = qd.finishedQuests.keySet().iterator();
-                StringBuilder sb = new StringBuilder("= Finished Quests [").append(playerName).append("]\n");
-                while(iter.hasNext()) {
+                while (iter.hasNext()) {
                     Integer qId = iter.next();
                     Quest quest = QuestController.instance.quests.get(qId);
                     if (quest != null ) {
@@ -1016,23 +1275,71 @@ public class CommandCustomExtension extends CommandBase {
                             || onlyRepeated && quest.repeat == EnumQuestRepeat.NONE) {
                             continue;
                         }
-                        sb.append( String.format("% ,3d [%8s] [%10s] %s\n",
-                          quest.id, quest.type, quest.repeat, quest.title));
+                        appendQuestLine(sb, quest).append('\n');//qId type Repeat Categ:QuestTitle
                     }
                 }
                 response = sb.toString();
             } else {
-                response = "empty";
+                response = "["+playerName+"] No Finished Quests";
             }
         }
+        //---------
+        //remove quest autoseach in active and finished player quests
+        else if (w.isCmd("remove", "rm")) {
+            if (w.isHelpCmdOrNoArgs()) {
+                return "(#QuestId2Remove)";
+            }
+            Integer qId = w.argI(w.ai++, -1);//QuestId to remove
+            boolean removed = false;
+            if (qId > -1) {
+                if (safe(qd.activeQuests).size() > 0) {
+                    removed = (qd.activeQuests.remove(qId) != null);
+                }
+                if (safe(qd.finishedQuests).size() > 0) {
+                    removed = (qd.finishedQuests.remove(qId) != null) || removed;
+                }
+
+                if (removed) {
+                    Quest quest = QuestController.instance.quests.get(qId);
+                    if (quest != null) {
+                        response = this.appendQuestLine(new StringBuilder("[").append(playerName).append("] Removed:"), quest).toString();
+                    } else {
+                        response = "["+playerName+"] Removed QuestId: " + qId;
+                    }
+                    noppes.npcs.controllers.PlayerDataController.instance.savePlayerData(data);
+                }
+                else {
+                    response = "["+playerName+"] Not Found QuestId: " + qId;
+                }
+            }
+            else {
+                return "illegal QuestId " + w.arg(w.ai - 1);
+            }
+        }
+
         return response;
+    }
+
+
+    public StringBuilder appendQuestLine(StringBuilder sb, Quest quest) {
+        if (sb != null) {
+            if (quest != null) {
+                String categTitle = quest.category == null ? "" : quest.category.title;
+                                      //  qId type Repeat CategTitle:QuestTitle
+                sb.append( String.format("% ,3d [%8s] [%10s] %s:%s",
+                        quest.id, quest.type, quest.repeat,  categTitle, quest.title));
+            } else {
+                sb.append("null");
+            }
+        }
+        return sb;
     }
 
 
     public String cmdPlayerDataDialog(ArgsWrapper w, ICommandSender sender, PlayerData data) {
         String response = "?";
         if (w.isHelpCmdOrNoArgs()) {
-            return "is-read (dialogId) | readed-in-category (catId) | catigories | total-readed";
+            return "is-read (dialogId) | readed-in-category (catId) | categories | total-readed";
         }
         PlayerDialogData dd = data.dialogData;
         //---------
@@ -1047,7 +1354,7 @@ public class CommandCustomExtension extends CommandBase {
             }
         }
         //---------
-        else if (w.isCmd("catigories", "c")) {
+        else if (w.isCmd("categories", "c")) {
             Iterator<DialogCategory> iter = DialogController.instance.categories.values().iterator();
             StringBuilder sb = new StringBuilder();
             sb.append("#DCatId Title DialogCount\n");

@@ -85,3 +85,6 @@ cx dialog (dialogId) option clear
 cx dialog help
 cx categories help
 
+Сохранить содержимое 23 диалога в файл filename.js в папке ecmascript
+cx dialog 23 script ecmascript filename.js save
+cx dialog 23 script ecmascript filename.js load     - обратное действие

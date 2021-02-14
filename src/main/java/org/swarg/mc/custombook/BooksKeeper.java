@@ -19,10 +19,11 @@ import noppes.npcs.controllers.PlayerDataController;
 import noppes.npcs.controllers.DialogController;
 import noppes.npcs.controllers.DialogCategory;
 import noppes.npcs.controllers.Dialog;
+
 import org.apache.logging.log4j.Level;
-import static org.swarg.mc.custombook.CustomNPCBook.LOG;
 
 import org.swarg.mc.custombook.util.NpcUtil;
+import static org.swarg.mc.custombook.CustomNPCBook.LOG;
 import static org.swarg.mc.custombook.util.NpcUtil.isServerSide;
 
 

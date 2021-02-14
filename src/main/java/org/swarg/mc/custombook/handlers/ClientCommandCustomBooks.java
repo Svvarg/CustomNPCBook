@@ -17,7 +17,6 @@ import noppes.npcs.client.gui.global.GuiNPCManageDialogs;
 
 import org.swarg.mc.custombook.CustomNPCBook;
 import org.swarg.mc.custombook.util.NpcUtil;
-import org.swarg.mc.fixes.Fixes;
 
 /**
  * 7-02-21
@@ -64,15 +63,6 @@ public class ClientCommandCustomBooks extends CommandBase {
             else if ("v".equals(cmd) || "version".equals(cmd)) {
                 response = CustomNPCBook.VERSION + "-b." + CustomNPCBook.BUILD;
             }
-            //--------------------
-            else if ("check-gui-stat".equals(cmd) || "cgs".equals(cmd)) {
-                StringBuilder log = new StringBuilder();
-                Fixes.fixItemBasedStats(log, "[CLIENT]", net.minecraft.stats.StatList.objectMineStats, true);
-                response = log.toString();
-            }
-            //else if ("guic".equals(cmd)) {
-            //    response = "GuiCounter:" + org.swarg.mc.fixes.Fixes.guiCounter;
-            //}
 
             //--------------------
             else if (c > 1 && "dialog".equals(cmd) || "d".equals(cmd)) {
