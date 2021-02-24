@@ -20,7 +20,7 @@ import org.swarg.mc.custombook.util.NpcUtil;
 
 /**
  * 7-02-21
- * Experimental Commands for Client Side only
+ * Experimental Commands for [ClientSide] only! (-cmd4j)
  * @author Swarg
  */
 public class ClientCommandCustomBooks extends CommandBase {
@@ -46,7 +46,7 @@ public class ClientCommandCustomBooks extends CommandBase {
     }
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<version/check-stat-gui/dialog>";//guic
+        return "<version/dialog>";//guic
     }
 
     @Override

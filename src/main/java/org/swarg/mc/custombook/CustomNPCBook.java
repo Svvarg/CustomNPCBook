@@ -17,6 +17,7 @@ import org.swarg.mc.custombook.handlers.CommandCustomBooks;
 import org.swarg.mc.custombook.handlers.CommandCustomExtension;
 import org.swarg.mc.custombook.handlers.CommandNamedBroadcast;
 import org.swarg.mc.custombook.handlers.ClientCommandCustomBooks;
+import org.swarg.mc.custombook.handlers.CommandNpcQuestCoolDown;
 import org.swarg.mc.custombook.handlers.QuestCraftHandler;
 
 /**
@@ -28,7 +29,8 @@ public class CustomNPCBook {
     public static final Logger LOG = LogManager.getLogger("CBooks");
     public static final String MODID = "CustomNPCBooks";
     public static final String VERSION = "0.3";
-    public static final int BUILD = 74;
+    public static final int BUILD = 79;
+    //private static final boolean SERVER_SIDE = true;
 
     
     @EventHandler
@@ -36,6 +38,7 @@ public class CustomNPCBook {
         event.registerServerCommand(new CommandCustomBooks());
         event.registerServerCommand(new CommandCustomExtension());
         event.registerServerCommand(new CommandNamedBroadcast());
+        event.registerServerCommand(new CommandNpcQuestCoolDown());
     }
 
 
@@ -65,7 +68,7 @@ public class CustomNPCBook {
     @EventHandler
     public void postInit(cpw.mods.fml.common.event.FMLPostInitializationEvent event) {
         ///*DEBUG*/LOG.info("[###] Register CraftHandler");
-        FMLCommonHandler.instance().bus().register(new QuestCraftHandler());
+        FMLCommonHandler.instance().bus().register(QuestCraftHandler.instance());
     }
 
 }

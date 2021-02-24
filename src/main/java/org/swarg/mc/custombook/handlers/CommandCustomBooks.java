@@ -11,8 +11,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
 
 import noppes.npcs.NoppesUtilServer;
 import noppes.npcs.controllers.Dialog;
@@ -60,7 +58,7 @@ public class CommandCustomBooks extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender p_71518_1_) {
-        return "<vesrion/status/reload/display/quest-tag/item/jump-to-dim/convert/debug/mapping/check-gui-stat>";
+        return "<vesrion/status/reload/item/display/quest-tag/convert/jump-to-dim/debug/mapping>";
     }
 
 
@@ -99,9 +97,9 @@ public class CommandCustomBooks extends CommandBase {
                     : "meta:" + meta + " > #"+dialog.id+" "+dialog.title;
         }
         //
-        //experimental
+        //experimental 
         else if (w.isCmd("null")) {
-            sender.addChatMessage(new ChatComponentTranslation(null));//new ChatComponentText(null));//make client crash
+            sender.addChatMessage(new net.minecraft.util.ChatComponentTranslation(null));//make clientside crash
         }
 
         else if (w.isCmd("item", "i") && sender instanceof EntityPlayer) {
@@ -128,7 +126,7 @@ public class CommandCustomBooks extends CommandBase {
                 response = cmdDisplayTag(w, sender);
             }
 
-
+            //book to text
             else if (w.isCmd("convert") && sender instanceof EntityPlayer) {
                 ItemStack is = ((EntityPlayer)sender).getHeldItem();
 
@@ -144,22 +142,8 @@ public class CommandCustomBooks extends CommandBase {
                 }
             }
         }
-
         
-        //output to op
-        if (response != null) {
-            // multiline
-            if (sender instanceof EntityPlayer && response.contains("\n")) {
-                String[] lines = response.split("\n");
-                for (String line : lines) {
-                    sender.addChatMessage(new ChatComponentText(line));
-                }
-            }
-            //single line
-            else {
-                sender.addChatMessage(new ChatComponentText(response));
-            }
-        }        
+        NpcUtil.toSender(sender, response);
     }
 
       //  ==============------
@@ -366,6 +350,5 @@ public class CommandCustomBooks extends CommandBase {
         }
         return response;
     }
-
 
 }

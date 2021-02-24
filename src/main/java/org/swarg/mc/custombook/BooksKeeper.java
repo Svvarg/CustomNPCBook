@@ -84,7 +84,7 @@ public class BooksKeeper {
                 }
                 dialog.hideNPC = true;
                 
-                logD("Meta: {} DialogId: {} CategoryId: {} [SendData:DIALOG_DUMMY]", meta, dialog.id, dialog.category.id);
+                /*DEBUG*/if (debug) {logD("Meta: {} DialogId: {} CategoryId: {} [SendData:DIALOG_DUMMY]", meta, dialog.id, dialog.category.id);}
 
                 ///*Full:*/ NoppesUtilServer.openDialog(player, keeper, dialog);
                 //Eco:

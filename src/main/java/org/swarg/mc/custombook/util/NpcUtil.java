@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Collections;
 import java.lang.reflect.Field;
+import java.util.Iterator;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -34,6 +35,7 @@ import noppes.npcs.controllers.Quest;
 
 import org.swarg.mc.custombook.BooksKeeper;
 import static net.minecraft.util.StringUtils.isNullOrEmpty;
+import noppes.npcs.controllers.QuestController;
 
 /**
  * 04-02-21
@@ -45,6 +47,19 @@ public class NpcUtil {
         return e != null && e.worldObj != null && !e.worldObj.isRemote;
     }
 
+    public static void toSender(ICommandSender sender, String response) {
+        if (response != null) {
+            if (sender instanceof EntityPlayer && response.contains("\n")) {
+                String[] lines = response.split("\n");
+                for (String line : lines) {
+                    sender.addChatMessage(new ChatComponentText(line));
+                }
+            }
+            else {
+                sender.addChatMessage(new ChatComponentText(response));
+            }
+        }
+    }
     /**
      * Message to all players
      * @param name
@@ -131,6 +146,44 @@ public class NpcUtil {
                         }
                     }
                     return lastUsedDialogID;
+                }
+            }
+            catch (Exception e) {
+            }
+        }
+        return -1;//error
+    }
+
+    /**
+     * Trim - для случаев когда создаются квесты по командам и квест создался неправильно
+     * для того чтобы можно было экономно использовать идишники квестов (иначе
+     * после удаления квеста идишник будет не использован) Но это только для горячих
+     * исправлений. Иначе может полуится так что идишник будет забит у негоко игрока
+     * (AutoTrim автоматически происходит при рестарте сервера и CustomNPC)
+     * @param trim
+     * @return
+     */
+    public static int getLastQuestID(Boolean trim) {
+        if (QuestController.instance != null) {
+            try {
+                Field field = QuestController.class.getDeclaredField("lastUsedQuestID");
+                if (field != null) {
+                    field.setAccessible(true);
+                    int lastUsedQuestID = field.getInt(QuestController.instance);
+
+                    if (trim && lastUsedQuestID > 0 && QuestController.instance.quests != null) {
+                        int max = 0;
+                        for(Integer id : QuestController.instance.quests.keySet()) {
+                            if (id > max) {
+                                max = id;
+                            }
+                        }
+                        if (max < lastUsedQuestID) {
+                            lastUsedQuestID = max;
+                            field.setInt(QuestController.instance, lastUsedQuestID);
+                        }
+                    }
+                    return lastUsedQuestID;
                 }
             }
             catch (Exception e) {
@@ -365,4 +418,37 @@ public class NpcUtil {
         }
     }
 
+
+    public static int getFirstFreeDialogOptionIndex(Dialog d, int max) {
+        if (d != null && d.options != null) {
+            final int sz = d.options.size();
+            if (sz == 0) {
+                return 0;
+            } else {
+                //Iterator<Integer> iter = d.options.keySet().iterator();
+                //int remain = 0;
+                //int last = -1;
+                for (int i = 0; i < max; i++) {
+                    if (!d.options.containsKey(i)) {
+                        return i;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+    /**
+     * '1.2 DialogTitle'  Prefix is '1.2'
+     * @param dialog
+     * @return
+     */
+    public static String getDialotTitlePrefix(Dialog dialog) {
+        if (dialog != null && !isNullOrEmpty(dialog.title)) {
+            final int s = dialog.title.indexOf(' ');
+            if (s > 0) {
+                return dialog.title.substring(0, s);
+            }
+        }
+        return "";
+    }
 }

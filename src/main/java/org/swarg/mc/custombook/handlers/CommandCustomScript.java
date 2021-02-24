@@ -1,8 +1,8 @@
 package org.swarg.mc.custombook.handlers;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Iterator;
+import java.lang.reflect.Field;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
